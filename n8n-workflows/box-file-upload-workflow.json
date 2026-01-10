@@ -1,0 +1,268 @@
+{
+  "name": "SureSafe - Box File Upload Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "box-file-upload",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Box File Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.source.type }}",
+              "operation": "equals",
+              "value2": "file"
+            }
+          ]
+        }
+      },
+      "id": "validate-event",
+      "name": "Validate File Event",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CLOUD_RUN_URL }}/extract",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "fileId",
+              "value": "={{ $json.source.id }}"
+            },
+            {
+              "name": "extractionType",
+              "value": "={{ $json.extractionType || 'fnol' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call-ai-extraction",
+      "name": "Call AI Extraction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-extraction-success",
+      "name": "Extraction Successful?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "updateMetadata",
+        "fileId": "={{ $node['Call AI Extraction'].json.fileId }}",
+        "metadataScope": "enterprise",
+        "metadataTemplate": "claimDocument",
+        "metadataValues": {
+          "values": [
+            {
+              "key": "aiProcessed",
+              "value": "Yes"
+            },
+            {
+              "key": "claimantName",
+              "value": "={{ $node['Call AI Extraction'].json.data.claimantName }}"
+            },
+            {
+              "key": "policyNumber",
+              "value": "={{ $node['Call AI Extraction'].json.data.policyNumber }}"
+            }
+          ]
+        }
+      },
+      "id": "update-metadata",
+      "name": "Update Box Metadata",
+      "type": "n8n-nodes-base.box",
+      "typeVersion": 1,
+      "position": [1120, 100],
+      "credentials": {
+        "boxOAuth2Api": {
+          "id": "box-credentials",
+          "name": "Box OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#claims-intake",
+        "text": "=New document processed:\n*File:* {{ $node['Box File Upload Webhook'].json.source.name }}\n*Claim:* {{ $node['Call AI Extraction'].json.data.claimNumber || 'Unknown' }}\n*Claimant:* {{ $node['Call AI Extraction'].json.data.claimantName || 'Unknown' }}",
+        "otherOptions": {}
+      },
+      "id": "notify-slack",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1340, 100],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#claims-errors",
+        "text": "=AI Extraction failed for file {{ $node['Box File Upload Webhook'].json.source.name }}\nError: {{ $node['Call AI Extraction'].json.error }}",
+        "otherOptions": {}
+      },
+      "id": "notify-error",
+      "name": "Notify Error",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ received: true, processed: $node['Check Extraction Success'].json.success || false }) }}"
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 200]
+    }
+  ],
+  "connections": {
+    "Box File Upload Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate File Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate File Event": {
+      "main": [
+        [
+          {
+            "node": "Call AI Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call AI Extraction": {
+      "main": [
+        [
+          {
+            "node": "Check Extraction Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Extraction Success": {
+      "main": [
+        [
+          {
+            "node": "Update Box Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Box Metadata": {
+      "main": [
+        [
+          {
+            "node": "Notify Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Slack": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Error": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "Box Integration"
+    },
+    {
+      "name": "SureSafe"
+    }
+  ]
+}

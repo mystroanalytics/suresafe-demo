@@ -1,0 +1,262 @@
+{
+  "name": "SureSafe - Fraud Alert Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fraud-alert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Fraud Alert Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.riskScore }}",
+              "operation": "larger",
+              "value2": 75
+            }
+          ]
+        }
+      },
+      "id": "check-risk-score",
+      "name": "High Risk?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "updateMetadata",
+        "fileId": "={{ $json.fileId }}",
+        "metadataScope": "enterprise",
+        "metadataTemplate": "claimDocument",
+        "metadataValues": {
+          "values": [
+            {
+              "key": "fraudRiskScore",
+              "value": "={{ $json.riskScore }}"
+            },
+            {
+              "key": "fraudIndicators",
+              "value": "={{ $json.indicators.join(', ') }}"
+            },
+            {
+              "key": "siuReferral",
+              "value": "Yes"
+            }
+          ]
+        }
+      },
+      "id": "update-fraud-metadata",
+      "name": "Update Fraud Metadata",
+      "type": "n8n-nodes-base.box",
+      "typeVersion": 1,
+      "position": [680, 200],
+      "credentials": {
+        "boxOAuth2Api": {
+          "id": "box-credentials",
+          "name": "Box OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "task",
+        "operation": "create",
+        "item": "={{ $json.fileId }}",
+        "message": "=URGENT: High fraud risk detected (Score: {{ $json.riskScore }})\n\nIndicators:\n{{ $json.indicators.join('\\n') }}\n\nPlease review and escalate to SIU if warranted.",
+        "action": "review",
+        "dueAt": "={{ $now.plus(1, 'day').toISO() }}"
+      },
+      "id": "create-siu-task",
+      "name": "Create SIU Review Task",
+      "type": "n8n-nodes-base.box",
+      "typeVersion": 1,
+      "position": [900, 200],
+      "credentials": {
+        "boxOAuth2Api": {
+          "id": "box-credentials",
+          "name": "Box OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#siu-alerts",
+        "text": "=:rotating_light: *HIGH FRAUD RISK DETECTED* :rotating_light:\n\n*Claim:* {{ $json.claimNumber }}\n*File:* {{ $json.fileName }}\n*Risk Score:* {{ $json.riskScore }}/100\n*Risk Level:* {{ $json.riskLevel }}\n\n*Indicators:*\n{{ $json.indicators.map(i => '• ' + i).join('\\n') }}\n\n*Recommended Action:* {{ $json.recommendedAction }}\n\n<{{ $json.fileUrl }}|View Document in Box>",
+        "otherOptions": {
+          "mrkdwn": true
+        }
+      },
+      "id": "alert-siu-slack",
+      "name": "Alert SIU Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1120, 200],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toEmail": "={{ $env.SIU_EMAIL || 'siu@suresafe.com' }}",
+        "subject": "=URGENT: High Fraud Risk - Claim {{ $json.claimNumber }}",
+        "emailType": "html",
+        "message": "=<h2>High Fraud Risk Alert</h2>\n<p><strong>Claim Number:</strong> {{ $json.claimNumber }}</p>\n<p><strong>Risk Score:</strong> {{ $json.riskScore }}/100 ({{ $json.riskLevel }})</p>\n<h3>Fraud Indicators:</h3>\n<ul>\n{{ $json.indicators.map(i => '<li>' + i + '</li>').join('') }}\n</ul>\n<p><strong>Recommended Action:</strong> {{ $json.recommendedAction }}</p>\n<p><a href=\"{{ $json.fileUrl }}\">View Document in Box</a></p>"
+      },
+      "id": "email-siu",
+      "name": "Email SIU Manager",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1340, 200],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-credentials",
+          "name": "SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#claims-processing",
+        "text": "=Document processed - No fraud concerns detected.\n*Claim:* {{ $json.claimNumber }}\n*Risk Score:* {{ $json.riskScore }}/100",
+        "otherOptions": {}
+      },
+      "id": "notify-low-risk",
+      "name": "Log Low Risk",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [680, 400],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ processed: true, highRisk: $json.riskScore > 75, riskScore: $json.riskScore }) }}"
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "Fraud Alert Webhook": {
+      "main": [
+        [
+          {
+            "node": "High Risk?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Risk?": {
+      "main": [
+        [
+          {
+            "node": "Update Fraud Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Low Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Fraud Metadata": {
+      "main": [
+        [
+          {
+            "node": "Create SIU Review Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create SIU Review Task": {
+      "main": [
+        [
+          {
+            "node": "Alert SIU Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert SIU Team": {
+      "main": [
+        [
+          {
+            "node": "Email SIU Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email SIU Manager": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Low Risk": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "Box Integration"
+    },
+    {
+      "name": "SureSafe"
+    },
+    {
+      "name": "Fraud Detection"
+    }
+  ]
+}

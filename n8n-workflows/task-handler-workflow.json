@@ -1,0 +1,395 @@
+{
+  "name": "SureSafe - Task Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "box-tasks",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Task Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "value": "={{ $json.trigger === 'TASK_ASSIGNMENT.CREATED' }}",
+              "outputKey": "created"
+            },
+            {
+              "value": "={{ $json.trigger === 'TASK_ASSIGNMENT.UPDATED' && $json.source.status === 'completed' }}",
+              "outputKey": "completed"
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "id": "route-by-event",
+      "name": "Route by Event",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "channel": "={{ $json.source.assigned_to?.login ? '@' + $json.source.assigned_to.login : '#claims-tasks' }}",
+        "text": "=:clipboard: *New Task Assigned*\n\n*Task:* {{ $json.source.message }}\n*Due:* {{ $json.source.due_at || 'No due date' }}\n*File:* {{ $json.source.item?.name || 'Unknown' }}\n*Assigned by:* {{ $json.source.assigned_by?.name || 'System' }}\n\n<https://app.box.com/file/{{ $json.source.item?.id }}|View in Box>",
+        "otherOptions": {
+          "mrkdwn": true
+        }
+      },
+      "id": "notify-new-task",
+      "name": "Notify New Task",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [680, 200],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CLAIMS_API_URL }}/api/tasks/create",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.CLAIMS_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "boxTaskId",
+              "value": "={{ $json.source.id }}"
+            },
+            {
+              "name": "fileId",
+              "value": "={{ $json.source.item?.id }}"
+            },
+            {
+              "name": "fileName",
+              "value": "={{ $json.source.item?.name }}"
+            },
+            {
+              "name": "assignee",
+              "value": "={{ $json.source.assigned_to?.login }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.source.message }}"
+            },
+            {
+              "name": "dueDate",
+              "value": "={{ $json.source.due_at }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sync-task-to-cms",
+      "name": "Sync to Claims System",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CLAIMS_API_URL }}/api/tasks/complete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.CLAIMS_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "boxTaskId",
+              "value": "={{ $json.source.id }}"
+            },
+            {
+              "name": "resolution",
+              "value": "={{ $json.source.resolution_state }}"
+            },
+            {
+              "name": "completedBy",
+              "value": "={{ $json.source.assigned_to?.login }}"
+            },
+            {
+              "name": "completedAt",
+              "value": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sync-completion-to-cms",
+      "name": "Sync Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.source.resolution_state }}",
+              "operation": "equals",
+              "value2": "approved"
+            }
+          ]
+        }
+      },
+      "id": "check-approval",
+      "name": "Was Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "updateMetadata",
+        "fileId": "={{ $json.source.item?.id }}",
+        "metadataScope": "enterprise",
+        "metadataTemplate": "claimDocument",
+        "metadataValues": {
+          "values": [
+            {
+              "key": "claimStatus",
+              "value": "Approved"
+            },
+            {
+              "key": "approvedBy",
+              "value": "={{ $json.source.assigned_to?.name }}"
+            },
+            {
+              "key": "approvalDate",
+              "value": "={{ $now.toISO() }}"
+            }
+          ]
+        }
+      },
+      "id": "update-approved-metadata",
+      "name": "Update Approved Status",
+      "type": "n8n-nodes-base.box",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "credentials": {
+        "boxOAuth2Api": {
+          "id": "box-credentials",
+          "name": "Box OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#claims-approvals",
+        "text": "=:white_check_mark: *Claim Approved*\n\n*File:* {{ $json.source.item?.name }}\n*Approved by:* {{ $json.source.assigned_to?.name }}\n*Resolution:* {{ $json.source.resolution_state }}",
+        "otherOptions": {
+          "mrkdwn": true
+        }
+      },
+      "id": "notify-approved",
+      "name": "Notify Approval",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#claims-tasks",
+        "text": "=:memo: *Task Completed*\n\n*File:* {{ $json.source.item?.name }}\n*Completed by:* {{ $json.source.assigned_to?.name }}\n*Resolution:* {{ $json.source.resolution_state }}",
+        "otherOptions": {
+          "mrkdwn": true
+        }
+      },
+      "id": "notify-completed",
+      "name": "Notify Completed",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1120, 500],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ processed: true, event: $json.trigger, taskId: $json.source.id }) }}"
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "Task Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route by Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Event": {
+      "main": [
+        [
+          {
+            "node": "Notify New Task",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sync Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify New Task": {
+      "main": [
+        [
+          {
+            "node": "Sync to Claims System",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync to Claims System": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync Completion": {
+      "main": [
+        [
+          {
+            "node": "Was Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Was Approved?": {
+      "main": [
+        [
+          {
+            "node": "Update Approved Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Approved Status": {
+      "main": [
+        [
+          {
+            "node": "Notify Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Approval": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Completed": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "Box Integration"
+    },
+    {
+      "name": "SureSafe"
+    },
+    {
+      "name": "Task Management"
+    }
+  ]
+}

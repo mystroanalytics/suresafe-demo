@@ -1,0 +1,455 @@
+{
+  "name": "SureSafe - Box Sign Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "box-sign",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Box Sign Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "value": "={{ $json.trigger === 'SIGN_REQUEST.COMPLETED' }}",
+              "outputKey": "completed"
+            },
+            {
+              "value": "={{ $json.trigger === 'SIGN_REQUEST.DECLINED' }}",
+              "outputKey": "declined"
+            },
+            {
+              "value": "={{ $json.trigger === 'SIGN_REQUEST.EXPIRED' }}",
+              "outputKey": "expired"
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "id": "route-by-event",
+      "name": "Route by Event",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "updateMetadata",
+        "fileId": "={{ $json.source.sign_request.sign_files.files[0].id }}",
+        "metadataScope": "enterprise",
+        "metadataTemplate": "claimDocument",
+        "metadataValues": {
+          "values": [
+            {
+              "key": "signatureStatus",
+              "value": "Completed"
+            },
+            {
+              "key": "signedDate",
+              "value": "={{ $now.toISO() }}"
+            },
+            {
+              "key": "claimStatus",
+              "value": "Settlement Approved"
+            }
+          ]
+        }
+      },
+      "id": "update-completed-metadata",
+      "name": "Update Completed Status",
+      "type": "n8n-nodes-base.box",
+      "typeVersion": 1,
+      "position": [680, 100],
+      "credentials": {
+        "boxOAuth2Api": {
+          "id": "box-credentials",
+          "name": "Box OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CLAIMS_API_URL }}/api/claims/settlement-complete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.CLAIMS_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "signRequestId",
+              "value": "={{ $json.source.sign_request.id }}"
+            },
+            {
+              "name": "fileId",
+              "value": "={{ $json.source.sign_request.sign_files.files[0].id }}"
+            },
+            {
+              "name": "completedAt",
+              "value": "={{ $now.toISO() }}"
+            },
+            {
+              "name": "signers",
+              "value": "={{ JSON.stringify($json.source.sign_request.signers) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "notify-claims-system",
+      "name": "Notify Claims System",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 100]
+    },
+    {
+      "parameters": {
+        "channel": "#settlements",
+        "text": "=:white_check_mark: *Settlement Agreement Signed*\n\n*Sign Request:* {{ $json.source.sign_request.id }}\n*Document:* {{ $json.source.sign_request.sign_files.files[0].name }}\n*Signers:*\n{{ $json.source.sign_request.signers.map(s => '• ' + s.email + ' - ' + s.status).join('\\n') }}\n\nSettlement processing initiated.",
+        "otherOptions": {
+          "mrkdwn": true
+        }
+      },
+      "id": "notify-completed-slack",
+      "name": "Notify Completion",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1120, 100],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "updateMetadata",
+        "fileId": "={{ $json.source.sign_request.sign_files.files[0].id }}",
+        "metadataScope": "enterprise",
+        "metadataTemplate": "claimDocument",
+        "metadataValues": {
+          "values": [
+            {
+              "key": "signatureStatus",
+              "value": "Declined"
+            },
+            {
+              "key": "claimStatus",
+              "value": "Settlement Declined"
+            }
+          ]
+        }
+      },
+      "id": "update-declined-metadata",
+      "name": "Update Declined Status",
+      "type": "n8n-nodes-base.box",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "credentials": {
+        "boxOAuth2Api": {
+          "id": "box-credentials",
+          "name": "Box OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "task",
+        "operation": "create",
+        "item": "={{ $json.source.sign_request.sign_files.files[0].id }}",
+        "message": "=Settlement agreement was DECLINED.\n\nSigner: {{ $json.source.sign_request.signers.find(s => s.status === 'declined')?.email || 'Unknown' }}\n\nPlease review and determine next steps:\n1. Contact claimant to understand concerns\n2. Revise settlement terms if appropriate\n3. Escalate to supervisor if needed",
+        "action": "review",
+        "dueAt": "={{ $now.plus(2, 'day').toISO() }}"
+      },
+      "id": "create-declined-task",
+      "name": "Create Review Task",
+      "type": "n8n-nodes-base.box",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "credentials": {
+        "boxOAuth2Api": {
+          "id": "box-credentials",
+          "name": "Box OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#settlements",
+        "text": "=:x: *Settlement Agreement Declined*\n\n*Sign Request:* {{ $json.source.sign_request.id }}\n*Document:* {{ $json.source.sign_request.sign_files.files[0].name }}\n*Declined by:* {{ $json.source.sign_request.signers.find(s => s.status === 'declined')?.email || 'Unknown' }}\n\nReview task created for claims adjuster.",
+        "otherOptions": {
+          "mrkdwn": true
+        }
+      },
+      "id": "notify-declined-slack",
+      "name": "Notify Declined",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "updateMetadata",
+        "fileId": "={{ $json.source.sign_request.sign_files.files[0].id }}",
+        "metadataScope": "enterprise",
+        "metadataTemplate": "claimDocument",
+        "metadataValues": {
+          "values": [
+            {
+              "key": "signatureStatus",
+              "value": "Expired"
+            },
+            {
+              "key": "claimStatus",
+              "value": "Settlement Pending - Resend Required"
+            }
+          ]
+        }
+      },
+      "id": "update-expired-metadata",
+      "name": "Update Expired Status",
+      "type": "n8n-nodes-base.box",
+      "typeVersion": 1,
+      "position": [680, 500],
+      "credentials": {
+        "boxOAuth2Api": {
+          "id": "box-credentials",
+          "name": "Box OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "task",
+        "operation": "create",
+        "item": "={{ $json.source.sign_request.sign_files.files[0].id }}",
+        "message": "=Settlement signature request has EXPIRED.\n\nOriginal signers:\n{{ $json.source.sign_request.signers.map(s => s.email).join('\\n') }}\n\nPlease:\n1. Contact claimant to confirm interest in settlement\n2. Resend signature request if appropriate\n3. Update claim status if settlement no longer applicable",
+        "action": "review",
+        "dueAt": "={{ $now.plus(1, 'day').toISO() }}"
+      },
+      "id": "create-expired-task",
+      "name": "Create Resend Task",
+      "type": "n8n-nodes-base.box",
+      "typeVersion": 1,
+      "position": [900, 500],
+      "credentials": {
+        "boxOAuth2Api": {
+          "id": "box-credentials",
+          "name": "Box OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#settlements",
+        "text": "=:warning: *Settlement Agreement Expired*\n\n*Sign Request:* {{ $json.source.sign_request.id }}\n*Document:* {{ $json.source.sign_request.sign_files.files[0].name }}\n\nSignature request has expired. Task created for claims adjuster to follow up.",
+        "otherOptions": {
+          "mrkdwn": true
+        }
+      },
+      "id": "notify-expired-slack",
+      "name": "Notify Expired",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1120, 500],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ processed: true, event: $json.trigger, signRequestId: $json.source.sign_request?.id }) }}"
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Box Sign Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route by Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Event": {
+      "main": [
+        [
+          {
+            "node": "Update Completed Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Declined Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Expired Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Completed Status": {
+      "main": [
+        [
+          {
+            "node": "Notify Claims System",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Claims System": {
+      "main": [
+        [
+          {
+            "node": "Notify Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Completion": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Declined Status": {
+      "main": [
+        [
+          {
+            "node": "Create Review Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Review Task": {
+      "main": [
+        [
+          {
+            "node": "Notify Declined",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Declined": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Expired Status": {
+      "main": [
+        [
+          {
+            "node": "Create Resend Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Resend Task": {
+      "main": [
+        [
+          {
+            "node": "Notify Expired",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Expired": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "Box Integration"
+    },
+    {
+      "name": "SureSafe"
+    },
+    {
+      "name": "Box Sign"
+    }
+  ]
+}

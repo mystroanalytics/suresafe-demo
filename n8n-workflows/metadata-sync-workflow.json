@@ -1,0 +1,401 @@
+{
+  "name": "SureSafe - Metadata Sync Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "box-metadata",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Metadata Change Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.trigger }}",
+              "operation": "contains",
+              "value2": "METADATA"
+            }
+          ]
+        }
+      },
+      "id": "validate-event",
+      "name": "Is Metadata Event?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "value": "={{ $json.source.metadata?.enterprise?.claimDocument }}",
+              "outputKey": "claimDocument"
+            },
+            {
+              "value": "={{ $json.source.metadata?.enterprise?.policyDocument }}",
+              "outputKey": "policyDocument"
+            },
+            {
+              "value": "={{ $json.source.metadata?.enterprise?.medicalRecord }}",
+              "outputKey": "medicalRecord"
+            },
+            {
+              "value": "={{ $json.source.metadata?.enterprise?.legalDocument }}",
+              "outputKey": "legalDocument"
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "id": "route-by-template",
+      "name": "Route by Template",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CLAIMS_API_URL }}/api/claims/sync",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.CLAIMS_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "fileId",
+              "value": "={{ $json.source.id }}"
+            },
+            {
+              "name": "fileName",
+              "value": "={{ $json.source.name }}"
+            },
+            {
+              "name": "claimNumber",
+              "value": "={{ $json.source.metadata?.enterprise?.claimDocument?.claimNumber }}"
+            },
+            {
+              "name": "policyNumber",
+              "value": "={{ $json.source.metadata?.enterprise?.claimDocument?.policyNumber }}"
+            },
+            {
+              "name": "claimStatus",
+              "value": "={{ $json.source.metadata?.enterprise?.claimDocument?.claimStatus }}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ JSON.stringify($json.source.metadata?.enterprise?.claimDocument) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sync-claim-to-cms",
+      "name": "Sync Claim to CMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.POLICY_API_URL }}/api/policies/link",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.POLICY_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "fileId",
+              "value": "={{ $json.source.id }}"
+            },
+            {
+              "name": "policyNumber",
+              "value": "={{ $json.source.metadata?.enterprise?.policyDocument?.policyNumber }}"
+            },
+            {
+              "name": "documentType",
+              "value": "={{ $json.source.metadata?.enterprise?.policyDocument?.documentType }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sync-policy-to-pms",
+      "name": "Sync Policy to PMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 250]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.MEDICAL_API_URL }}/api/records/update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.MEDICAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "fileId",
+              "value": "={{ $json.source.id }}"
+            },
+            {
+              "name": "recordType",
+              "value": "={{ $json.source.metadata?.enterprise?.medicalRecord?.recordType }}"
+            },
+            {
+              "name": "provider",
+              "value": "={{ $json.source.metadata?.enterprise?.medicalRecord?.providerName }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sync-medical-record",
+      "name": "Sync Medical Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.LEGAL_API_URL }}/api/documents/register",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.LEGAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "fileId",
+              "value": "={{ $json.source.id }}"
+            },
+            {
+              "name": "documentType",
+              "value": "={{ $json.source.metadata?.enterprise?.legalDocument?.documentType }}"
+            },
+            {
+              "name": "caseNumber",
+              "value": "={{ $json.source.metadata?.enterprise?.legalDocument?.caseNumber }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sync-legal-document",
+      "name": "Sync Legal Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 550]
+    },
+    {
+      "parameters": {
+        "channel": "#data-sync",
+        "text": "=Metadata synced for file: {{ $json.source.name }}\nTemplate: {{ Object.keys($json.source.metadata?.enterprise || {})[0] || 'unknown' }}\nEvent: {{ $json.trigger }}",
+        "otherOptions": {}
+      },
+      "id": "log-sync",
+      "name": "Log Sync Event",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ synced: true, fileId: $json.source.id, template: Object.keys($json.source.metadata?.enterprise || {})[0] }) }}"
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Metadata Change Webhook": {
+      "main": [
+        [
+          {
+            "node": "Is Metadata Event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Metadata Event?": {
+      "main": [
+        [
+          {
+            "node": "Route by Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Template": {
+      "main": [
+        [
+          {
+            "node": "Sync Claim to CMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sync Policy to PMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sync Medical Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sync Legal Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync Claim to CMS": {
+      "main": [
+        [
+          {
+            "node": "Log Sync Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync Policy to PMS": {
+      "main": [
+        [
+          {
+            "node": "Log Sync Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync Medical Record": {
+      "main": [
+        [
+          {
+            "node": "Log Sync Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync Legal Document": {
+      "main": [
+        [
+          {
+            "node": "Log Sync Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sync Event": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "Box Integration"
+    },
+    {
+      "name": "SureSafe"
+    },
+    {
+      "name": "Data Sync"
+    }
+  ]
+}
