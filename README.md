@@ -33,7 +33,9 @@ A Google Cloud Run service that:
 - Returns extracted data as JSON
 - Handles multiple document types (FNOL, Medical Records, Estimates, Police Reports)
 
-**Deployment URL**: `https://suresafe-box-ai-[PROJECT_ID].run.app`
+**Deployment URL**: `https://suresafe-box-ai-579767694933.us-central1.run.app`
+
+**API Documentation**: `https://suresafe-box-ai-579767694933.us-central1.run.app/docs`
 
 ### 2. Box AI Agents (`/box-scripts`)
 Scripts to create and manage Box AI Studio agents:

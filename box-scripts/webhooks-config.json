@@ -1,0 +1,159 @@
+{
+  "created": "2026-01-10T21:13:32.669Z",
+  "targetFolder": "360174903981",
+  "cloudRunUrl": "https://suresafe-box-ai-579767694933.us-central1.run.app",
+  "n8nUrl": "https://n8n.suresafe.com/webhook",
+  "webhooks": [
+    {
+      "name": "File Upload Handler",
+      "id": "6879777124",
+      "status": "created",
+      "triggers": [
+        "FILE.UPLOADED"
+      ],
+      "address": "https://suresafe-box-ai-579767694933.us-central1.run.app/webhook/box"
+    },
+    {
+      "name": "Metadata Change Handler",
+      "status": "error",
+      "error": "Unexpected API Response [409 Conflict | x5kclqi96c5h08b8.03316b12059c779601759664a8fc74308] conflict - Bad Request",
+      "config": {
+        "name": "Metadata Change Handler",
+        "target": {
+          "type": "folder",
+          "id": "360174903981"
+        },
+        "triggers": [
+          "METADATA_INSTANCE.CREATED",
+          "METADATA_INSTANCE.UPDATED",
+          "METADATA_INSTANCE.DELETED"
+        ],
+        "address": "https://n8n.suresafe.com/webhook/box-metadata",
+        "description": "Syncs metadata changes with external systems"
+      }
+    },
+    {
+      "name": "Task Handler",
+      "status": "error",
+      "error": "Unexpected API Response [409 Conflict | iz4u48i96c5h98om.042af07d69c7be7f8639c1242838e0490] conflict - Bad Request",
+      "config": {
+        "name": "Task Handler",
+        "target": {
+          "type": "folder",
+          "id": "360174903981"
+        },
+        "triggers": [
+          "TASK_ASSIGNMENT.CREATED",
+          "TASK_ASSIGNMENT.UPDATED"
+        ],
+        "address": "https://n8n.suresafe.com/webhook/box-tasks",
+        "description": "Handles task workflow events"
+      }
+    },
+    {
+      "name": "Box Sign Handler",
+      "status": "error",
+      "error": "Unexpected API Response [409 Conflict | 6ssjeai96c5hgqnh.084b07187352b952bb0a8444f45374b89] conflict - Bad Request",
+      "config": {
+        "name": "Box Sign Handler",
+        "target": {
+          "type": "folder",
+          "id": "360174903981"
+        },
+        "triggers": [
+          "SIGN_REQUEST.COMPLETED",
+          "SIGN_REQUEST.DECLINED",
+          "SIGN_REQUEST.EXPIRED"
+        ],
+        "address": "https://n8n.suresafe.com/webhook/box-sign",
+        "description": "Processes signature events for settlements"
+      }
+    },
+    {
+      "name": "Collaboration Handler",
+      "status": "error",
+      "error": "Unexpected API Response [409 Conflict | ggt1mji96c5hpckc.07f42fd31fcca25521e953c25d267e503] conflict - Bad Request",
+      "config": {
+        "name": "Collaboration Handler",
+        "target": {
+          "type": "folder",
+          "id": "360174903981"
+        },
+        "triggers": [
+          "COLLABORATION.CREATED",
+          "COLLABORATION.REMOVED"
+        ],
+        "address": "https://n8n.suresafe.com/webhook/box-collab",
+        "description": "Tracks collaboration changes for audit"
+      }
+    }
+  ],
+  "definitions": [
+    {
+      "name": "File Upload Handler",
+      "target": {
+        "type": "folder",
+        "id": "360174903981"
+      },
+      "triggers": [
+        "FILE.UPLOADED"
+      ],
+      "address": "https://suresafe-box-ai-579767694933.us-central1.run.app/webhook/box",
+      "description": "Triggers AI extraction on new document uploads"
+    },
+    {
+      "name": "Metadata Change Handler",
+      "target": {
+        "type": "folder",
+        "id": "360174903981"
+      },
+      "triggers": [
+        "METADATA_INSTANCE.CREATED",
+        "METADATA_INSTANCE.UPDATED",
+        "METADATA_INSTANCE.DELETED"
+      ],
+      "address": "https://n8n.suresafe.com/webhook/box-metadata",
+      "description": "Syncs metadata changes with external systems"
+    },
+    {
+      "name": "Task Handler",
+      "target": {
+        "type": "folder",
+        "id": "360174903981"
+      },
+      "triggers": [
+        "TASK_ASSIGNMENT.CREATED",
+        "TASK_ASSIGNMENT.UPDATED"
+      ],
+      "address": "https://n8n.suresafe.com/webhook/box-tasks",
+      "description": "Handles task workflow events"
+    },
+    {
+      "name": "Box Sign Handler",
+      "target": {
+        "type": "folder",
+        "id": "360174903981"
+      },
+      "triggers": [
+        "SIGN_REQUEST.COMPLETED",
+        "SIGN_REQUEST.DECLINED",
+        "SIGN_REQUEST.EXPIRED"
+      ],
+      "address": "https://n8n.suresafe.com/webhook/box-sign",
+      "description": "Processes signature events for settlements"
+    },
+    {
+      "name": "Collaboration Handler",
+      "target": {
+        "type": "folder",
+        "id": "360174903981"
+      },
+      "triggers": [
+        "COLLABORATION.CREATED",
+        "COLLABORATION.REMOVED"
+      ],
+      "address": "https://n8n.suresafe.com/webhook/box-collab",
+      "description": "Tracks collaboration changes for audit"
+    }
+  ]
+}

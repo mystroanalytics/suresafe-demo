@@ -1,0 +1,10 @@
+{
+  "name": "suresafe-n8n-workflows",
+  "version": "1.0.0",
+  "description": "n8n workflow definitions for SureSafe Box integration",
+  "type": "module",
+  "scripts": {
+    "import": "node import-workflows.js"
+  },
+  "dependencies": {}
+}

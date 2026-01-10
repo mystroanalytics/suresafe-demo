@@ -2,27 +2,173 @@ import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
 import BoxSDK from 'box-node-sdk';
+import swaggerUi from 'swagger-ui-express';
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// OpenAPI/Swagger documentation
+const swaggerDocument = {
+  openapi: '3.0.0',
+  info: {
+    title: 'SureSafe Box AI Extraction API',
+    version: '1.0.0',
+    description: 'API for extracting structured data from insurance documents using Box AI',
+    contact: { name: 'Mystro Analytics', email: 'support@mystroanalytics.com' }
+  },
+  servers: [
+    { url: process.env.CLOUD_RUN_URL || 'http://localhost:8080', description: 'API Server' }
+  ],
+  paths: {
+    '/health': {
+      get: {
+        summary: 'Health check',
+        tags: ['System'],
+        responses: { '200': { description: 'Service is healthy' } }
+      }
+    },
+    '/extract': {
+      post: {
+        summary: 'Extract structured data from a document',
+        tags: ['Extraction'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['fileId', 'extractionType'],
+                properties: {
+                  fileId: { type: 'string', description: 'Box file ID' },
+                  extractionType: { type: 'string', enum: ['fnol', 'medical', 'estimate', 'police', 'invoice'] }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'Extraction successful' },
+          '400': { description: 'Invalid request' },
+          '500': { description: 'Extraction failed' }
+        }
+      }
+    },
+    '/ask': {
+      post: {
+        summary: 'Ask a question about a document',
+        tags: ['AI'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['fileId', 'question'],
+                properties: {
+                  fileId: { type: 'string' },
+                  question: { type: 'string' }
+                }
+              }
+            }
+          }
+        },
+        responses: { '200': { description: 'Answer returned' } }
+      }
+    },
+    '/summarize': {
+      post: {
+        summary: 'Summarize a document',
+        tags: ['AI'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['fileId'],
+                properties: {
+                  fileId: { type: 'string' },
+                  summaryType: { type: 'string', enum: ['claim', 'medical', 'general'] }
+                }
+              }
+            }
+          }
+        },
+        responses: { '200': { description: 'Summary returned' } }
+      }
+    },
+    '/analyze-fraud': {
+      post: {
+        summary: 'Analyze document for fraud indicators',
+        tags: ['AI'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['fileId'],
+                properties: { fileId: { type: 'string' } }
+              }
+            }
+          }
+        },
+        responses: { '200': { description: 'Fraud analysis returned' } }
+      }
+    },
+    '/extraction-types': {
+      get: {
+        summary: 'List supported extraction types',
+        tags: ['Extraction'],
+        responses: { '200': { description: 'List of extraction types' } }
+      }
+    },
+    '/webhook/box': {
+      post: {
+        summary: 'Box webhook handler',
+        tags: ['Webhooks'],
+        responses: { '200': { description: 'Webhook received' } }
+      }
+    }
+  }
+};
+
+// Serve Swagger UI
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.get('/api-docs.json', (req, res) => res.json(swaggerDocument));
+
 // Box SDK Configuration
 let boxClient = null;
 
 function initializeBoxClient() {
-  const config = {
-    boxAppSettings: {
-      clientID: process.env.BOX_CLIENT_ID,
-      clientSecret: process.env.BOX_CLIENT_SECRET,
-      appAuth: {
-        publicKeyID: process.env.BOX_JWT_KEY_ID,
-        privateKey: Buffer.from(process.env.BOX_PRIVATE_KEY || '', 'base64').toString('utf8'),
-        passphrase: process.env.BOX_PASSPHRASE
-      }
-    },
-    enterpriseID: process.env.BOX_ENTERPRISE_ID
-  };
+  let config;
+
+  // Try to load from BOX_CONFIG JSON string first
+  if (process.env.BOX_CONFIG) {
+    config = JSON.parse(process.env.BOX_CONFIG);
+  } else {
+    // Build config from individual environment variables
+    let privateKey = process.env.BOX_PRIVATE_KEY || '';
+
+    // If it's base64 encoded, decode it
+    if (privateKey && !privateKey.includes('-----BEGIN')) {
+      privateKey = Buffer.from(privateKey, 'base64').toString('utf8');
+    }
+
+    config = {
+      boxAppSettings: {
+        clientID: process.env.BOX_CLIENT_ID,
+        clientSecret: process.env.BOX_CLIENT_SECRET,
+        appAuth: {
+          publicKeyID: process.env.BOX_JWT_KEY_ID,
+          privateKey: privateKey,
+          passphrase: process.env.BOX_PASSPHRASE
+        }
+      },
+      enterpriseID: process.env.BOX_ENTERPRISE_ID
+    };
+  }
 
   const sdk = BoxSDK.getPreconfiguredInstance(config);
   boxClient = sdk.getAppAuthClient('enterprise');
