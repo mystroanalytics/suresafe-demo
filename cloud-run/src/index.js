@@ -379,6 +379,49 @@ Return structured JSON.`,
       { key: 'paymentTerms', type: 'string', description: 'Payment terms' },
       { key: 'claimReference', type: 'string', description: 'Related claim number' }
     ]
+  },
+
+  insurance_claim: {
+    name: 'Insurance_Claim_Extraction',
+    prompt: `Extract the following information from this insurance claim document:
+
+1. Claimant full name
+2. Policy number
+3. Claim type (auto, property, health, life, etc.)
+4. Date of incident/loss
+5. Location of incident
+6. Description of incident
+7. Estimated claim amount
+8. Contact information (phone, email, address)
+9. Injuries reported (if any)
+10. Property damage description (if any)
+11. Third parties involved (names, contact info)
+12. Witnesses (names, contact info)
+13. Police/fire report filed (yes/no, report number)
+14. Supporting documents listed
+15. Claim status
+
+Return the extracted data in a structured JSON format.`,
+    fields: [
+      { key: 'claimantName', type: 'string', description: 'Full name of the claimant' },
+      { key: 'policyNumber', type: 'string', description: 'Insurance policy number' },
+      { key: 'claimType', type: 'string', description: 'Type of insurance claim' },
+      { key: 'dateOfIncident', type: 'date', description: 'Date when the incident occurred' },
+      { key: 'incidentLocation', type: 'string', description: 'Location where incident occurred' },
+      { key: 'incidentDescription', type: 'string', description: 'Detailed description of the incident' },
+      { key: 'estimatedAmount', type: 'string', description: 'Estimated claim amount in dollars' },
+      { key: 'contactPhone', type: 'string', description: 'Claimant phone number' },
+      { key: 'contactEmail', type: 'string', description: 'Claimant email address' },
+      { key: 'contactAddress', type: 'string', description: 'Claimant address' },
+      { key: 'injuriesReported', type: 'string', description: 'Description of injuries if any' },
+      { key: 'propertyDamage', type: 'string', description: 'Description of property damage' },
+      { key: 'thirdParties', type: 'string', description: 'Third parties involved' },
+      { key: 'witnesses', type: 'string', description: 'Witness names and contact info' },
+      { key: 'policeReportFiled', type: 'string', description: 'Police/fire report filed (yes/no)' },
+      { key: 'reportNumber', type: 'string', description: 'Police/fire report number' },
+      { key: 'supportingDocuments', type: 'string', description: 'List of supporting documents' },
+      { key: 'claimStatus', type: 'string', description: 'Current status of the claim' }
+    ]
   }
 };
 
@@ -390,7 +433,9 @@ app.get('/health', (req, res) => {
 // Main extraction endpoint
 app.post('/extract', async (req, res) => {
   try {
-    const { fileId, extractionType } = req.body;
+    // Support both camelCase and snake_case parameter names
+    const fileId = req.body.fileId || req.body.file_id;
+    const extractionType = req.body.extractionType || req.body.extraction_type;
 
     if (!fileId) {
       return res.status(400).json({ error: 'fileId is required' });
@@ -449,7 +494,9 @@ app.post('/extract', async (req, res) => {
 // Document Q&A endpoint
 app.post('/ask', async (req, res) => {
   try {
-    const { fileId, question } = req.body;
+    // Support both camelCase and snake_case parameter names
+    const fileId = req.body.fileId || req.body.file_id;
+    const question = req.body.question;
 
     if (!fileId || !question) {
       return res.status(400).json({ error: 'fileId and question are required' });
@@ -490,7 +537,9 @@ app.post('/ask', async (req, res) => {
 // Summarize document endpoint
 app.post('/summarize', async (req, res) => {
   try {
-    const { fileId, summaryType } = req.body;
+    // Support both camelCase and snake_case parameter names
+    const fileId = req.body.fileId || req.body.file_id;
+    const summaryType = req.body.summaryType || req.body.summary_type;
 
     if (!fileId) {
       return res.status(400).json({ error: 'fileId is required' });
@@ -561,7 +610,8 @@ Keep the summary concise but comprehensive.`,
 // Fraud analysis endpoint
 app.post('/analyze-fraud', async (req, res) => {
   try {
-    const { fileId } = req.body;
+    // Support both camelCase and snake_case parameter names
+    const fileId = req.body.fileId || req.body.file_id;
 
     if (!fileId) {
       return res.status(400).json({ error: 'fileId is required' });

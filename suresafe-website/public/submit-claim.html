@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submit Claim - SureSafe Insurance</title>
+  <link rel="icon" href="/images/icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <a href="/dashboard" class="logo">
+        <img src="/images/sure-safe-logo-small.png" alt="SureSafe Insurance">
+        <div>
+          <div class="logo-text">SureSafe Insurance</div>
+          <div class="logo-tagline">Member Portal</div>
+        </div>
+      </a>
+      <nav class="nav">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/submit-claim" class="active">Submit Claim</a>
+        <a href="/claims">My Claims</a>
+      </nav>
+      <div class="user-menu">
+        <span class="user-name" id="user-name">Loading...</span>
+        <button class="btn btn-outline" id="logout-btn" style="padding: 0.5rem 1rem;">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <h1 class="page-title">Submit a New Claim</h1>
+    <p class="page-subtitle">Fill out the form below to submit your insurance claim. Upload supporting documents for faster processing.</p>
+
+    <div id="success-message" class="alert alert-success" style="display: none;"></div>
+    <div id="error-message" class="alert alert-error" style="display: none;"></div>
+
+    <form id="claim-form" class="card">
+      <div class="card-header">
+        <h2 class="card-title">Claim Details</h2>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+        <div class="form-group">
+          <label class="form-label" for="claimType">Claim Type *</label>
+          <select id="claimType" class="form-select" required>
+            <option value="">Select claim type...</option>
+            <option value="Auto - Collision">Auto - Collision</option>
+            <option value="Auto - Comprehensive">Auto - Comprehensive</option>
+            <option value="Auto - Liability">Auto - Liability</option>
+            <option value="Property - Fire">Property - Fire</option>
+            <option value="Property - Water Damage">Property - Water Damage</option>
+            <option value="Property - Theft">Property - Theft</option>
+            <option value="Property - Storm">Property - Storm</option>
+            <option value="Health - Medical">Health - Medical</option>
+            <option value="Health - Dental">Health - Dental</option>
+            <option value="Health - Vision">Health - Vision</option>
+            <option value="Life - Death Benefit">Life - Death Benefit</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="incidentDate">Date of Incident *</label>
+          <input type="date" id="incidentDate" class="form-input" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="estimatedAmount">Estimated Claim Amount ($) *</label>
+          <input type="number" id="estimatedAmount" class="form-input" placeholder="0.00" min="0" step="0.01" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="description">Description of Incident *</label>
+        <textarea id="description" class="form-textarea" placeholder="Please describe what happened in detail..." required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Supporting Documents</label>
+        <p style="color: var(--text-light); margin-bottom: 1rem; font-size: 0.9rem;">
+          Upload photos, receipts, police reports, medical records, or any other relevant documents.
+          Accepted formats: PDF, JPEG, PNG, DOC, DOCX (Max 50MB per file)
+        </p>
+
+        <div class="file-upload" id="file-upload-area">
+          <div class="file-upload-icon">&#128194;</div>
+          <p><strong>Drag and drop files here</strong></p>
+          <p style="color: var(--text-light);">or click to browse</p>
+          <input type="file" id="file-input" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx" style="display: none;">
+        </div>
+
+        <div class="file-list" id="file-list"></div>
+      </div>
+
+      <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+        <button type="submit" class="btn btn-primary" id="submit-btn">
+          Submit Claim
+        </button>
+        <a href="/dashboard" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+
+    <div class="card" style="margin-top: 2rem;">
+      <div class="card-header">
+        <h2 class="card-title">What Happens Next?</h2>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; text-align: center;">
+        <div>
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">1. &#128196;</div>
+          <h4>Submission</h4>
+          <p style="color: var(--text-light); font-size: 0.9rem;">Your claim is received and logged in our system</p>
+        </div>
+        <div>
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">2. &#129302;</div>
+          <h4>AI Analysis</h4>
+          <p style="color: var(--text-light); font-size: 0.9rem;">Documents are automatically analyzed</p>
+        </div>
+        <div>
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">3. &#128269;</div>
+          <h4>Review</h4>
+          <p style="color: var(--text-light); font-size: 0.9rem;">Claims adjuster reviews your case</p>
+        </div>
+        <div>
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">4. &#10004;</div>
+          <h4>Resolution</h4>
+          <p style="color: var(--text-light); font-size: 0.9rem;">Decision and payment processing</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2024 SureSafe Insurance. All rights reserved. | Powered by Box Platform</p>
+  </footer>
+
+  <script>
+    let selectedFiles = [];
+
+    async function loadUser() {
+      try {
+        const response = await fetch('/api/user');
+        const data = await response.json();
+        if (!data.success) {
+          window.location.href = '/login';
+          return;
+        }
+        document.getElementById('user-name').textContent = data.user.name;
+      } catch (error) {
+        window.location.href = '/login';
+      }
+    }
+
+    // File upload handling
+    const fileUploadArea = document.getElementById('file-upload-area');
+    const fileInput = document.getElementById('file-input');
+    const fileList = document.getElementById('file-list');
+
+    fileUploadArea.addEventListener('click', () => fileInput.click());
+
+    fileUploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      fileUploadArea.classList.add('dragover');
+    });
+
+    fileUploadArea.addEventListener('dragleave', () => {
+      fileUploadArea.classList.remove('dragover');
+    });
+
+    fileUploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      fileUploadArea.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      handleFiles(e.target.files);
+    });
+
+    function handleFiles(files) {
+      for (const file of files) {
+        if (!selectedFiles.some(f => f.name === file.name)) {
+          selectedFiles.push(file);
+        }
+      }
+      renderFileList();
+    }
+
+    function renderFileList() {
+      if (selectedFiles.length === 0) {
+        fileList.innerHTML = '';
+        return;
+      }
+
+      fileList.innerHTML = selectedFiles.map((file, index) => `
+        <div class="file-item">
+          <span>&#128196;</span>
+          <span>${file.name}</span>
+          <span style="color: var(--text-light); font-size: 0.85rem;">(${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+          <span class="remove-file" onclick="removeFile(${index})">&#10005;</span>
+        </div>
+      `).join('');
+    }
+
+    function removeFile(index) {
+      selectedFiles.splice(index, 1);
+      renderFileList();
+    }
+
+    // Form submission
+    document.getElementById('claim-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const submitBtn = document.getElementById('submit-btn');
+      const successDiv = document.getElementById('success-message');
+      const errorDiv = document.getElementById('error-message');
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+      successDiv.style.display = 'none';
+      errorDiv.style.display = 'none';
+
+      try {
+        const formData = new FormData();
+        formData.append('claimType', document.getElementById('claimType').value);
+        formData.append('incidentDate', document.getElementById('incidentDate').value);
+        formData.append('estimatedAmount', document.getElementById('estimatedAmount').value);
+        formData.append('description', document.getElementById('description').value);
+
+        for (const file of selectedFiles) {
+          formData.append('documents', file);
+        }
+
+        const response = await fetch('/api/claims', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          successDiv.innerHTML = `
+            <strong>Claim Submitted Successfully!</strong><br>
+            Your claim ID is: <strong>${data.claim.id}</strong><br>
+            <a href="/claim/${data.claim.id}" style="color: inherit;">View Claim Details</a>
+          `;
+          successDiv.style.display = 'block';
+
+          // Reset form
+          document.getElementById('claim-form').reset();
+          selectedFiles = [];
+          renderFileList();
+
+          // Scroll to top
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          throw new Error(data.message || 'Failed to submit claim');
+        }
+      } catch (error) {
+        errorDiv.textContent = error.message;
+        errorDiv.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Claim';
+      }
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/';
+    });
+
+    loadUser();
+  </script>
+</body>
+</html>

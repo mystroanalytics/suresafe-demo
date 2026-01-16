@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Claims - SureSafe Insurance</title>
+  <link rel="icon" href="/images/icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <a href="/dashboard" class="logo">
+        <img src="/images/sure-safe-logo-small.png" alt="SureSafe Insurance">
+        <div>
+          <div class="logo-text">SureSafe Insurance</div>
+          <div class="logo-tagline">Member Portal</div>
+        </div>
+      </a>
+      <nav class="nav">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/submit-claim">Submit Claim</a>
+        <a href="/claims" class="active">My Claims</a>
+      </nav>
+      <div class="user-menu">
+        <span class="user-name" id="user-name">Loading...</span>
+        <button class="btn btn-outline" id="logout-btn" style="padding: 0.5rem 1rem;">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+      <div>
+        <h1 class="page-title">My Claims</h1>
+        <p class="page-subtitle" style="margin-bottom: 0;">View and track all your insurance claims</p>
+      </div>
+      <a href="/submit-claim" class="btn btn-primary">
+        &#10133; New Claim
+      </a>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">All Claims</h2>
+        <div style="display: flex; gap: 0.5rem;">
+          <select id="status-filter" class="form-select" style="width: auto;">
+            <option value="">All Statuses</option>
+            <option value="Submitted">Submitted</option>
+            <option value="Under Review">Under Review</option>
+            <option value="Approved">Approved</option>
+            <option value="Denied">Denied</option>
+            <option value="Paid">Paid</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="claims-container">
+        <div class="loading">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2024 SureSafe Insurance. All rights reserved. | Powered by Box Platform</p>
+  </footer>
+
+  <script>
+    let allClaims = [];
+
+    async function loadUser() {
+      try {
+        const response = await fetch('/api/user');
+        const data = await response.json();
+        if (!data.success) {
+          window.location.href = '/login';
+          return;
+        }
+        document.getElementById('user-name').textContent = data.user.name;
+        loadClaims();
+      } catch (error) {
+        window.location.href = '/login';
+      }
+    }
+
+    async function loadClaims() {
+      try {
+        const response = await fetch('/api/claims');
+        const data = await response.json();
+
+        if (data.success) {
+          allClaims = data.claims;
+          renderClaims(allClaims);
+        }
+      } catch (error) {
+        console.error('Error loading claims:', error);
+        document.getElementById('claims-container').innerHTML = `
+          <div class="alert alert-error">Failed to load claims. Please try again.</div>
+        `;
+      }
+    }
+
+    function renderClaims(claims) {
+      const container = document.getElementById('claims-container');
+
+      if (claims.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 3rem; color: var(--text-light);">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">&#128196;</div>
+            <h3>No Claims Found</h3>
+            <p>You haven't submitted any claims yet.</p>
+            <a href="/submit-claim" class="btn btn-primary" style="margin-top: 1rem;">Submit Your First Claim</a>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="claims-table">
+          <thead>
+            <tr>
+              <th>Claim ID</th>
+              <th>Type</th>
+              <th>Incident Date</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Submitted</th>
+              <th>Documents</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${claims.map(claim => `
+              <tr>
+                <td><strong>${claim.id}</strong></td>
+                <td>${claim.claimType}</td>
+                <td>${new Date(claim.incidentDate).toLocaleDateString()}</td>
+                <td>$${claim.estimatedAmount.toLocaleString()}</td>
+                <td><span class="status-badge status-${claim.status.toLowerCase().replace(' ', '-')}">${claim.status}</span></td>
+                <td>${new Date(claim.createdAt).toLocaleDateString()}</td>
+                <td>${claim.documents?.length || 0} files</td>
+                <td>
+                  <a href="/claim/${claim.id}" class="btn btn-secondary" style="padding: 0.5rem 1rem;">
+                    View Details
+                  </a>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    document.getElementById('status-filter').addEventListener('change', (e) => {
+      const status = e.target.value;
+      if (status) {
+        renderClaims(allClaims.filter(c => c.status === status));
+      } else {
+        renderClaims(allClaims);
+      }
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/';
+    });
+
+    loadUser();
+  </script>
+</body>
+</html>

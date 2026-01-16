@@ -1,0 +1,626 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_ClaimsProcessing" targetNamespace="http://suresafe.com/bpmn/claims" exporter="Camunda Modeler" exporterVersion="5.40.1">
+  <bpmn:message id="Message_DocumentUploaded" name="DocumentUploaded">
+    <bpmn:extensionElements>
+      <zeebe:subscription correlationKey="=claimId" />
+    </bpmn:extensionElements>
+  </bpmn:message>
+  <bpmn:message id="Message_SignatureComplete" name="SignatureComplete">
+    <bpmn:extensionElements>
+      <zeebe:subscription correlationKey="=claimId" />
+    </bpmn:extensionElements>
+  </bpmn:message>
+  <bpmn:process id="Process_ClaimsProcessing" name="SureSafe Claims Processing" isExecutable="true">
+    <bpmn:startEvent id="Start_ClaimReceived" name="Claim Received">
+      <bpmn:outgoing>Flow_ToCreateFolder</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_ToCreateFolder" sourceRef="Start_ClaimReceived" targetRef="Task_CreateBoxFolder" />
+    <bpmn:serviceTask id="Task_CreateBoxFolder" name="Create Box Claim Folder">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="box-create-folder" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=claimId" target="claimId" />
+          <zeebe:input source="=userName" target="userName" />
+          <zeebe:output source="=boxFolderId" target="boxFolderId" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToCreateFolder</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToBoxAIExtract</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ToBoxAIExtract" sourceRef="Task_CreateBoxFolder" targetRef="Task_BoxAIExtract" />
+    <bpmn:serviceTask id="Task_BoxAIExtract" name="Box AI: Extract Claim Data">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="box-ai-extract" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=boxFolderId" target="folderId" />
+          <zeebe:input source="=claimId" target="claimId" />
+          <zeebe:output source="=extractedData" target="extractedData" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToBoxAIExtract</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCalculateRisk</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ToCalculateRisk" sourceRef="Task_BoxAIExtract" targetRef="Task_CalculateRiskScore" />
+    <bpmn:serviceTask id="Task_CalculateRiskScore" name="Calculate Risk Score">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="risk-scoring" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=extractedData" target="extractedData" />
+          <zeebe:input source="=claimType" target="claimType" />
+          <zeebe:input source="=estimatedAmount" target="estimatedAmount" />
+          <zeebe:output source="=riskScore" target="riskScore" />
+          <zeebe:output source="=riskFactors" target="riskFactors" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToCalculateRisk</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToRiskGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ToRiskGateway" sourceRef="Task_CalculateRiskScore" targetRef="Gateway_RiskLevel" />
+    <bpmn:exclusiveGateway id="Gateway_RiskLevel" name="Risk Level?">
+      <bpmn:incoming>Flow_ToRiskGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_LowRisk</bpmn:outgoing>
+      <bpmn:outgoing>Flow_MediumRisk</bpmn:outgoing>
+      <bpmn:outgoing>Flow_HighRisk</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_LowRisk" name="Low (0-40)" sourceRef="Gateway_RiskLevel" targetRef="Task_AutoAssignAdjuster">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=riskScore &lt;= 40</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_MediumRisk" name="Medium (41-75)" sourceRef="Gateway_RiskLevel" targetRef="Task_SupervisorReview">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=riskScore &gt; 40 and riskScore &lt;= 75</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_HighRisk" name="High (76+)" sourceRef="Gateway_RiskLevel" targetRef="Task_ReferToSIU">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=riskScore &gt; 75</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:serviceTask id="Task_AutoAssignAdjuster" name="Auto-Assign Adjuster">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="adjuster-assignment" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=claimId" target="claimId" />
+          <zeebe:input source="=claimType" target="claimType" />
+          <zeebe:input source="=riskScore" target="riskScore" />
+          <zeebe:output source="=adjusterId" target="adjusterId" />
+          <zeebe:output source="=adjusterName" target="adjusterName" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_LowRisk</bpmn:incoming>
+      <bpmn:outgoing>Flow_LowToDocRequest</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_SupervisorReview" name="Supervisor Review">
+      <bpmn:extensionElements>
+        <zeebe:assignmentDefinition candidateGroups="Claims_Supervisors" />
+        <zeebe:formDefinition formKey="camunda-forms:bpmn:supervisorReviewForm" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_MediumRisk</bpmn:incoming>
+      <bpmn:outgoing>Flow_SupervisorDecision</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_SupervisorDecision" sourceRef="Task_SupervisorReview" targetRef="Gateway_SupervisorDecision" />
+    <bpmn:exclusiveGateway id="Gateway_SupervisorDecision" name="Supervisor Decision">
+      <bpmn:incoming>Flow_SupervisorDecision</bpmn:incoming>
+      <bpmn:outgoing>Flow_SupervisorApproved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_SupervisorEscalate</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_SupervisorApproved" name="Approve" sourceRef="Gateway_SupervisorDecision" targetRef="Task_ManualAssignAdjuster">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=reviewDecision = "approve"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_SupervisorEscalate" name="Escalate to SIU" sourceRef="Gateway_SupervisorDecision" targetRef="Task_ReferToSIU">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=reviewDecision = "escalate"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:serviceTask id="Task_ManualAssignAdjuster" name="Assign Selected Adjuster">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="adjuster-assignment" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=claimId" target="claimId" />
+          <zeebe:input source="=selectedAdjusterId" target="adjusterId" />
+          <zeebe:output source="=adjusterId" target="adjusterId" />
+          <zeebe:output source="=adjusterName" target="adjusterName" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_SupervisorApproved</bpmn:incoming>
+      <bpmn:outgoing>Flow_ManualToDocRequest</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_ReferToSIU" name="Refer to SIU">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="siu-referral" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=claimId" target="claimId" />
+          <zeebe:input source="=riskScore" target="riskScore" />
+          <zeebe:input source="=riskFactors" target="riskFactors" />
+          <zeebe:output source="=siuCaseId" target="siuCaseId" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_HighRisk</bpmn:incoming>
+      <bpmn:incoming>Flow_SupervisorEscalate</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToInvestigation</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ToInvestigation" sourceRef="Task_ReferToSIU" targetRef="Task_InvestigatorReview" />
+    <bpmn:userTask id="Task_InvestigatorReview" name="SIU Investigation">
+      <bpmn:extensionElements>
+        <zeebe:assignmentDefinition candidateGroups="SIU_Investigators" />
+        <zeebe:formDefinition formKey="camunda-forms:bpmn:investigatorForm" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToInvestigation</bpmn:incoming>
+      <bpmn:outgoing>Flow_InvestigationDecision</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_InvestigationDecision" sourceRef="Task_InvestigatorReview" targetRef="Gateway_FraudOutcome" />
+    <bpmn:exclusiveGateway id="Gateway_FraudOutcome" name="Investigation Outcome">
+      <bpmn:incoming>Flow_InvestigationDecision</bpmn:incoming>
+      <bpmn:outgoing>Flow_FraudConfirmed</bpmn:outgoing>
+      <bpmn:outgoing>Flow_FraudCleared</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_FraudConfirmed" name="Fraud Confirmed" sourceRef="Gateway_FraudOutcome" targetRef="Task_DenyClaim">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=investigationOutcome = "FRAUD_CONFIRMED"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_FraudCleared" name="Cleared" sourceRef="Gateway_FraudOutcome" targetRef="Task_PostSIUAssign">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=investigationOutcome = "CLEARED"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:serviceTask id="Task_PostSIUAssign" name="Assign Adjuster (Post-SIU)">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="adjuster-assignment" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=claimId" target="claimId" />
+          <zeebe:input source="=claimType" target="claimType" />
+          <zeebe:output source="=adjusterId" target="adjusterId" />
+          <zeebe:output source="=adjusterName" target="adjusterName" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_FraudCleared</bpmn:incoming>
+      <bpmn:outgoing>Flow_PostSIUToDocRequest</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_LowToDocRequest" sourceRef="Task_AutoAssignAdjuster" targetRef="Task_RequestDocuments" />
+    <bpmn:sequenceFlow id="Flow_ManualToDocRequest" sourceRef="Task_ManualAssignAdjuster" targetRef="Task_RequestDocuments" />
+    <bpmn:sequenceFlow id="Flow_PostSIUToDocRequest" sourceRef="Task_PostSIUAssign" targetRef="Task_RequestDocuments" />
+    <bpmn:serviceTask id="Task_RequestDocuments" name="Request Supporting Documents">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="document-request" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=claimId" target="claimId" />
+          <zeebe:input source="=userId" target="userId" />
+          <zeebe:input source="=claimType" target="claimType" />
+          <zeebe:output source="=documentRequestId" target="documentRequestId" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_LowToDocRequest</bpmn:incoming>
+      <bpmn:incoming>Flow_ManualToDocRequest</bpmn:incoming>
+      <bpmn:incoming>Flow_PostSIUToDocRequest</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToWaitDocs</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ToWaitDocs" sourceRef="Task_RequestDocuments" targetRef="Event_WaitForDocuments" />
+    <bpmn:intermediateCatchEvent id="Event_WaitForDocuments" name="Wait for Documents">
+      <bpmn:incoming>Flow_ToWaitDocs</bpmn:incoming>
+      <bpmn:incoming>Flow_MoreDocsNeeded</bpmn:incoming>
+      <bpmn:outgoing>Flow_DocsReceived</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageDef_DocUploaded" messageRef="Message_DocumentUploaded" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:sequenceFlow id="Flow_DocsReceived" sourceRef="Event_WaitForDocuments" targetRef="Task_ProcessDocuments" />
+    <bpmn:serviceTask id="Task_ProcessDocuments" name="Process Uploaded Documents">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="box-ai-extract" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=boxFolderId" target="folderId" />
+          <zeebe:input source="=claimId" target="claimId" />
+          <zeebe:output source="=extractedData" target="newExtractedData" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_DocsReceived</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToAdjusterReview</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ToAdjusterReview" sourceRef="Task_ProcessDocuments" targetRef="Task_AdjusterReview" />
+    <bpmn:userTask id="Task_AdjusterReview" name="Adjuster Claim Review">
+      <bpmn:extensionElements>
+        <zeebe:assignmentDefinition assignee="=adjusterId" candidateGroups="Claims_Adjusters" />
+        <zeebe:formDefinition formKey="camunda-forms:bpmn:adjusterReviewForm" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToAdjusterReview</bpmn:incoming>
+      <bpmn:outgoing>Flow_AdjusterDecision</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_AdjusterDecision" sourceRef="Task_AdjusterReview" targetRef="Gateway_AdjusterDecision" />
+    <bpmn:exclusiveGateway id="Gateway_AdjusterDecision" name="Adjuster Decision">
+      <bpmn:incoming>Flow_AdjusterDecision</bpmn:incoming>
+      <bpmn:outgoing>Flow_ApproveSettlement</bpmn:outgoing>
+      <bpmn:outgoing>Flow_DenyFromAdjuster</bpmn:outgoing>
+      <bpmn:outgoing>Flow_MoreDocsNeeded</bpmn:outgoing>
+      <bpmn:outgoing>Flow_EscalateForApproval</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_ApproveSettlement" name="Approve" sourceRef="Gateway_AdjusterDecision" targetRef="Gateway_ApprovalLevel">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=adjusterDecision = "approve"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_DenyFromAdjuster" name="Deny" sourceRef="Gateway_AdjusterDecision" targetRef="Task_DenyClaim">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=adjusterDecision = "deny"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_MoreDocsNeeded" name="More Docs" sourceRef="Gateway_AdjusterDecision" targetRef="Event_WaitForDocuments">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=adjusterDecision = "request_more_docs"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_EscalateForApproval" name="Escalate" sourceRef="Gateway_AdjusterDecision" targetRef="Task_ManagerApproval">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=adjusterDecision = "escalate"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:exclusiveGateway id="Gateway_ApprovalLevel" name="Approval Authority">
+      <bpmn:incoming>Flow_ApproveSettlement</bpmn:incoming>
+      <bpmn:outgoing>Flow_AdjusterCanApprove</bpmn:outgoing>
+      <bpmn:outgoing>Flow_NeedsManager</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_AdjusterCanApprove" name="Under $50K" sourceRef="Gateway_ApprovalLevel" targetRef="Task_GenerateSettlement">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=recommendedAmount &lt; 50000</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_NeedsManager" name="Over $50K" sourceRef="Gateway_ApprovalLevel" targetRef="Task_ManagerApproval">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=recommendedAmount &gt;= 50000</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:userTask id="Task_ManagerApproval" name="Manager Approval">
+      <bpmn:extensionElements>
+        <zeebe:assignmentDefinition candidateGroups="Executives" />
+        <zeebe:formDefinition formKey="camunda-forms:bpmn:managerApprovalForm" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_NeedsManager</bpmn:incoming>
+      <bpmn:incoming>Flow_EscalateForApproval</bpmn:incoming>
+      <bpmn:outgoing>Flow_ManagerDecision</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_ManagerDecision" sourceRef="Task_ManagerApproval" targetRef="Gateway_ManagerDecision" />
+    <bpmn:exclusiveGateway id="Gateway_ManagerDecision" name="Manager Decision">
+      <bpmn:incoming>Flow_ManagerDecision</bpmn:incoming>
+      <bpmn:outgoing>Flow_ManagerApproved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ManagerDenied</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_ManagerApproved" name="Approved" sourceRef="Gateway_ManagerDecision" targetRef="Task_GenerateSettlement">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=managerDecision = "approved"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ManagerDenied" name="Denied" sourceRef="Gateway_ManagerDecision" targetRef="Task_DenyClaim">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=managerDecision = "deny"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:serviceTask id="Task_GenerateSettlement" name="Generate Settlement Documents">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="generate-settlement" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=claimId" target="claimId" />
+          <zeebe:input source="=recommendedAmount" target="settlementAmount" />
+          <zeebe:input source="=boxFolderId" target="boxFolderId" />
+          <zeebe:output source="=settlementDocId" target="settlementDocId" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_AdjusterCanApprove</bpmn:incoming>
+      <bpmn:incoming>Flow_ManagerApproved</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToBoxSign</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ToBoxSign" sourceRef="Task_GenerateSettlement" targetRef="Task_BoxSignRequest" />
+    <bpmn:serviceTask id="Task_BoxSignRequest" name="Send Box Sign Request">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="box-sign-request" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=settlementDocId" target="documentId" />
+          <zeebe:input source="=userId" target="signerId" />
+          <zeebe:input source="=claimId" target="claimId" />
+          <zeebe:output source="=signRequestId" target="signRequestId" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToBoxSign</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToWaitSign</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ToWaitSign" sourceRef="Task_BoxSignRequest" targetRef="Event_WaitForSignature" />
+    <bpmn:intermediateCatchEvent id="Event_WaitForSignature" name="Wait for Signature">
+      <bpmn:incoming>Flow_ToWaitSign</bpmn:incoming>
+      <bpmn:outgoing>Flow_SignatureReceived</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageDef_Signed" messageRef="Message_SignatureComplete" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:sequenceFlow id="Flow_SignatureReceived" sourceRef="Event_WaitForSignature" targetRef="Task_ProcessPayment" />
+    <bpmn:serviceTask id="Task_ProcessPayment" name="Process Payment">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="payment-processing" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=claimId" target="claimId" />
+          <zeebe:input source="=recommendedAmount" target="paymentAmount" />
+          <zeebe:input source="=userId" target="payeeId" />
+          <zeebe:output source="=paymentConfirmation" target="paymentConfirmation" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_SignatureReceived</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCloseClaim</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ToCloseClaim" sourceRef="Task_ProcessPayment" targetRef="Task_CloseClaim" />
+    <bpmn:serviceTask id="Task_CloseClaim" name="Close Claim">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="close-claim" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=claimId" target="claimId" />
+          <zeebe:input source="=paymentConfirmation" target="paymentConfirmation" />
+          <zeebe:output source="=closedAt" target="closedAt" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToCloseClaim</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSuccessEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ToSuccessEnd" sourceRef="Task_CloseClaim" targetRef="End_ClaimPaid" />
+    <bpmn:endEvent id="End_ClaimPaid" name="Claim Paid">
+      <bpmn:incoming>Flow_ToSuccessEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="Task_DenyClaim" name="Generate Denial Letter">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="generate-denial" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=claimId" target="claimId" />
+          <zeebe:input source="=denialReason" target="reason" />
+          <zeebe:input source="=boxFolderId" target="boxFolderId" />
+          <zeebe:output source="=denialDocId" target="denialDocId" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_DenyFromAdjuster</bpmn:incoming>
+      <bpmn:incoming>Flow_ManagerDenied</bpmn:incoming>
+      <bpmn:incoming>Flow_FraudConfirmed</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCloseAsDenied</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ToCloseAsDenied" sourceRef="Task_DenyClaim" targetRef="End_ClaimDenied" />
+    <bpmn:endEvent id="End_ClaimDenied" name="Claim Denied">
+      <bpmn:incoming>Flow_ToCloseAsDenied</bpmn:incoming>
+    </bpmn:endEvent>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_ClaimsProcessing">
+      <bpmndi:BPMNShape id="Start_ClaimReceived_di" bpmnElement="Start_ClaimReceived">
+        <dc:Bounds x="152" y="282" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="132" y="325" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CreateBoxFolder_di" bpmnElement="Task_CreateBoxFolder">
+        <dc:Bounds x="240" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_BoxAIExtract_di" bpmnElement="Task_BoxAIExtract">
+        <dc:Bounds x="390" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CalculateRiskScore_di" bpmnElement="Task_CalculateRiskScore">
+        <dc:Bounds x="540" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_RiskLevel_di" bpmnElement="Gateway_RiskLevel" isMarkerVisible="true">
+        <dc:Bounds x="695" y="275" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="692" y="251" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AutoAssignAdjuster_di" bpmnElement="Task_AutoAssignAdjuster">
+        <dc:Bounds x="800" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SupervisorReview_di" bpmnElement="Task_SupervisorReview">
+        <dc:Bounds x="800" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_SupervisorDecision_di" bpmnElement="Gateway_SupervisorDecision" isMarkerVisible="true">
+        <dc:Bounds x="935" y="275" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ManualAssignAdjuster_di" bpmnElement="Task_ManualAssignAdjuster">
+        <dc:Bounds x="1020" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ReferToSIU_di" bpmnElement="Task_ReferToSIU">
+        <dc:Bounds x="800" y="370" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_InvestigatorReview_di" bpmnElement="Task_InvestigatorReview">
+        <dc:Bounds x="960" y="370" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_FraudOutcome_di" bpmnElement="Gateway_FraudOutcome" isMarkerVisible="true">
+        <dc:Bounds x="1075" y="385" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1069" y="347.5" width="62" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PostSIUAssign_di" bpmnElement="Task_PostSIUAssign">
+        <dc:Bounds x="1160" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RequestDocuments_di" bpmnElement="Task_RequestDocuments">
+        <dc:Bounds x="1310" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_WaitForDocuments_di" bpmnElement="Event_WaitForDocuments">
+        <dc:Bounds x="1452" y="182" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1430" y="225" width="80" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ProcessDocuments_di" bpmnElement="Task_ProcessDocuments">
+        <dc:Bounds x="1530" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdjusterReview_di" bpmnElement="Task_AdjusterReview">
+        <dc:Bounds x="1680" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_AdjusterDecision_di" bpmnElement="Gateway_AdjusterDecision" isMarkerVisible="true">
+        <dc:Bounds x="1825" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ApprovalLevel_di" bpmnElement="Gateway_ApprovalLevel" isMarkerVisible="true">
+        <dc:Bounds x="1925" y="85" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ManagerApproval_di" bpmnElement="Task_ManagerApproval">
+        <dc:Bounds x="2020" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ManagerDecision_di" bpmnElement="Gateway_ManagerDecision" isMarkerVisible="true">
+        <dc:Bounds x="2155" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_GenerateSettlement_di" bpmnElement="Task_GenerateSettlement">
+        <dc:Bounds x="2250" y="70" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_BoxSignRequest_di" bpmnElement="Task_BoxSignRequest">
+        <dc:Bounds x="2400" y="70" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_WaitForSignature_di" bpmnElement="Event_WaitForSignature">
+        <dc:Bounds x="2542" y="92" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2517" y="135" width="86" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ProcessPayment_di" bpmnElement="Task_ProcessPayment">
+        <dc:Bounds x="2620" y="70" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CloseClaim_di" bpmnElement="Task_CloseClaim">
+        <dc:Bounds x="2770" y="70" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_ClaimPaid_di" bpmnElement="End_ClaimPaid">
+        <dc:Bounds x="2922" y="92" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2913" y="135" width="55" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_DenyClaim_di" bpmnElement="Task_DenyClaim">
+        <dc:Bounds x="2250" y="280" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_ClaimDenied_di" bpmnElement="End_ClaimDenied">
+        <dc:Bounds x="2422" y="302" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2406" y="345" width="68" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_ToCreateFolder_di" bpmnElement="Flow_ToCreateFolder">
+        <di:waypoint x="188" y="300" />
+        <di:waypoint x="240" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToBoxAIExtract_di" bpmnElement="Flow_ToBoxAIExtract">
+        <di:waypoint x="340" y="300" />
+        <di:waypoint x="390" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToCalculateRisk_di" bpmnElement="Flow_ToCalculateRisk">
+        <di:waypoint x="490" y="300" />
+        <di:waypoint x="540" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToRiskGateway_di" bpmnElement="Flow_ToRiskGateway">
+        <di:waypoint x="640" y="300" />
+        <di:waypoint x="695" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_LowRisk_di" bpmnElement="Flow_LowRisk">
+        <di:waypoint x="720" y="275" />
+        <di:waypoint x="720" y="200" />
+        <di:waypoint x="800" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_MediumRisk_di" bpmnElement="Flow_MediumRisk">
+        <di:waypoint x="745" y="300" />
+        <di:waypoint x="800" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_HighRisk_di" bpmnElement="Flow_HighRisk">
+        <di:waypoint x="720" y="325" />
+        <di:waypoint x="720" y="410" />
+        <di:waypoint x="800" y="410" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SupervisorDecision_di" bpmnElement="Flow_SupervisorDecision">
+        <di:waypoint x="900" y="300" />
+        <di:waypoint x="935" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SupervisorApproved_di" bpmnElement="Flow_SupervisorApproved">
+        <di:waypoint x="960" y="275" />
+        <di:waypoint x="960" y="200" />
+        <di:waypoint x="1020" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SupervisorEscalate_di" bpmnElement="Flow_SupervisorEscalate">
+        <di:waypoint x="960" y="325" />
+        <di:waypoint x="960" y="410" />
+        <di:waypoint x="900" y="410" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToInvestigation_di" bpmnElement="Flow_ToInvestigation">
+        <di:waypoint x="900" y="410" />
+        <di:waypoint x="960" y="410" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_InvestigationDecision_di" bpmnElement="Flow_InvestigationDecision">
+        <di:waypoint x="1060" y="410" />
+        <di:waypoint x="1075" y="410" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FraudConfirmed_di" bpmnElement="Flow_FraudConfirmed">
+        <di:waypoint x="1100" y="435" />
+        <di:waypoint x="1100" y="520" />
+        <di:waypoint x="2300" y="520" />
+        <di:waypoint x="2300" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FraudCleared_di" bpmnElement="Flow_FraudCleared">
+        <di:waypoint x="1125" y="410" />
+        <di:waypoint x="1143" y="410" />
+        <di:waypoint x="1143" y="300" />
+        <di:waypoint x="1160" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_LowToDocRequest_di" bpmnElement="Flow_LowToDocRequest">
+        <di:waypoint x="900" y="200" />
+        <di:waypoint x="1310" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ManualToDocRequest_di" bpmnElement="Flow_ManualToDocRequest">
+        <di:waypoint x="1120" y="200" />
+        <di:waypoint x="1310" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PostSIUToDocRequest_di" bpmnElement="Flow_PostSIUToDocRequest">
+        <di:waypoint x="1260" y="300" />
+        <di:waypoint x="1285" y="300" />
+        <di:waypoint x="1285" y="200" />
+        <di:waypoint x="1310" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToWaitDocs_di" bpmnElement="Flow_ToWaitDocs">
+        <di:waypoint x="1410" y="200" />
+        <di:waypoint x="1452" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_DocsReceived_di" bpmnElement="Flow_DocsReceived">
+        <di:waypoint x="1488" y="200" />
+        <di:waypoint x="1530" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToAdjusterReview_di" bpmnElement="Flow_ToAdjusterReview">
+        <di:waypoint x="1630" y="200" />
+        <di:waypoint x="1680" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdjusterDecision_di" bpmnElement="Flow_AdjusterDecision">
+        <di:waypoint x="1780" y="200" />
+        <di:waypoint x="1825" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ApproveSettlement_di" bpmnElement="Flow_ApproveSettlement">
+        <di:waypoint x="1850" y="175" />
+        <di:waypoint x="1850" y="110" />
+        <di:waypoint x="1925" y="110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_DenyFromAdjuster_di" bpmnElement="Flow_DenyFromAdjuster">
+        <di:waypoint x="1850" y="225" />
+        <di:waypoint x="1850" y="320" />
+        <di:waypoint x="2250" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_MoreDocsNeeded_di" bpmnElement="Flow_MoreDocsNeeded">
+        <di:waypoint x="1850" y="175" />
+        <di:waypoint x="1850" y="80" />
+        <di:waypoint x="1470" y="80" />
+        <di:waypoint x="1470" y="182" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_EscalateForApproval_di" bpmnElement="Flow_EscalateForApproval">
+        <di:waypoint x="1875" y="200" />
+        <di:waypoint x="2020" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AdjusterCanApprove_di" bpmnElement="Flow_AdjusterCanApprove">
+        <di:waypoint x="1975" y="110" />
+        <di:waypoint x="2250" y="110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_NeedsManager_di" bpmnElement="Flow_NeedsManager">
+        <di:waypoint x="1950" y="135" />
+        <di:waypoint x="1950" y="200" />
+        <di:waypoint x="2020" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ManagerDecision_di" bpmnElement="Flow_ManagerDecision">
+        <di:waypoint x="2120" y="200" />
+        <di:waypoint x="2155" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ManagerApproved_di" bpmnElement="Flow_ManagerApproved">
+        <di:waypoint x="2180" y="175" />
+        <di:waypoint x="2180" y="110" />
+        <di:waypoint x="2250" y="110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ManagerDenied_di" bpmnElement="Flow_ManagerDenied">
+        <di:waypoint x="2180" y="225" />
+        <di:waypoint x="2180" y="320" />
+        <di:waypoint x="2250" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToBoxSign_di" bpmnElement="Flow_ToBoxSign">
+        <di:waypoint x="2350" y="110" />
+        <di:waypoint x="2400" y="110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToWaitSign_di" bpmnElement="Flow_ToWaitSign">
+        <di:waypoint x="2500" y="110" />
+        <di:waypoint x="2542" y="110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SignatureReceived_di" bpmnElement="Flow_SignatureReceived">
+        <di:waypoint x="2578" y="110" />
+        <di:waypoint x="2620" y="110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToCloseClaim_di" bpmnElement="Flow_ToCloseClaim">
+        <di:waypoint x="2720" y="110" />
+        <di:waypoint x="2770" y="110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToSuccessEnd_di" bpmnElement="Flow_ToSuccessEnd">
+        <di:waypoint x="2870" y="110" />
+        <di:waypoint x="2922" y="110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToCloseAsDenied_di" bpmnElement="Flow_ToCloseAsDenied">
+        <di:waypoint x="2350" y="320" />
+        <di:waypoint x="2422" y="320" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,3573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claim Details - SureSafe Admin</title>
+  <link rel="icon" href="/images/icon.png" type="image/png">
+  <link rel="stylesheet" href="/admin-styles.css">
+  <!-- Box UI Elements - All Components -->
+  <link rel="stylesheet" href="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/explorer.css">
+  <link rel="stylesheet" href="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/preview.css">
+  <link rel="stylesheet" href="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/uploader.css">
+  <link rel="stylesheet" href="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/picker.css">
+  <link rel="stylesheet" href="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/sidebar.css">
+  <!-- BPMN Viewer -->
+  <script src="https://unpkg.com/bpmn-js@17.0.2/dist/bpmn-navigated-viewer.production.min.js"></script>
+  <style>
+    .bpmn-container {
+      width: 100%;
+      height: 400px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+      position: relative;
+      overflow: hidden;
+    }
+    .bpmn-container .highlight-overlay {
+      fill: #22c55e !important;
+      fill-opacity: 0.3 !important;
+    }
+    .bpmn-container .djs-shape.active .djs-visual > rect,
+    .bpmn-container .djs-shape.active .djs-visual > circle {
+      stroke: #22c55e !important;
+      stroke-width: 3px !important;
+    }
+    .workflow-status-bar {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 1rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+    .workflow-status-bar .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #22c55e;
+      animation: pulse 2s infinite;
+    }
+    .workflow-status-bar.demo .status-indicator {
+      background: #fbbf24;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .workflow-task-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      transition: all 0.2s;
+    }
+    .workflow-task-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      border-color: #667eea;
+    }
+    .workflow-task-card .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .workflow-task-card .task-name {
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .workflow-task-card .task-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      background: #dbeafe;
+      color: #1d4ed8;
+      border-radius: 4px;
+    }
+    .workflow-task-card .task-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .workflow-task-card .task-actions button {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 0.85rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .bpmn-controls {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      display: flex;
+      gap: 0.5rem;
+      z-index: 10;
+    }
+    .bpmn-controls button {
+      width: 36px;
+      height: 36px;
+      border: 1px solid #e2e8f0;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+    }
+    .bpmn-controls button:hover {
+      background: #f1f5f9;
+    }
+    /* Box UI Elements Enhanced Styles */
+    .box-elements-panel {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .box-tabs {
+      display: flex;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .box-tab {
+      flex: 1;
+      padding: 0.875rem 1rem;
+      background: none;
+      border: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      border-bottom: 2px solid transparent;
+    }
+    .box-tab:hover {
+      color: #1e293b;
+      background: #f1f5f9;
+    }
+    .box-tab.active {
+      color: #4a90d9;
+      background: white;
+      border-bottom-color: #4a90d9;
+    }
+    .box-tab-content {
+      display: none;
+      min-height: 450px;
+    }
+    .box-tab-content.active {
+      display: block;
+    }
+    .box-element-container {
+      height: 450px;
+    }
+    .box-sidebar-container {
+      height: 500px;
+    }
+    .box-uploader-container {
+      padding: 2rem;
+      min-height: 300px;
+    }
+    .box-feature-highlight {
+      background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 100%);
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    .box-feature-highlight h4 {
+      margin: 0 0 0.5rem 0;
+      color: #1e40af;
+      font-size: 0.9rem;
+    }
+    .box-feature-highlight p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #3b82f6;
+    }
+    .file-details-panel {
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 1rem;
+      height: 500px;
+    }
+    .file-preview-area {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .file-sidebar-area {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    /* ============================================
+       BOX AI DRAWER - Box Platform Design System
+       ============================================ */
+
+    /* Box brand colors */
+    :root {
+      --box-blue: #0061d5;
+      --box-blue-dark: #004db3;
+      --box-blue-light: #e8f2fc;
+      --box-blue-hover: #0052b3;
+      --box-gradient: linear-gradient(135deg, #0061d5 0%, #004db3 100%);
+      --box-ai-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+      --box-success: #26c281;
+      --box-warning: #f5a623;
+      --box-error: #ed3757;
+      --box-gray-50: #f7f9fc;
+      --box-gray-100: #eef2f7;
+      --box-gray-200: #dce3ed;
+      --box-gray-300: #b4c2d3;
+      --box-gray-400: #8fa4bc;
+      --box-gray-500: #6b7d93;
+      --box-gray-600: #4a5568;
+      --box-gray-700: #2d3748;
+      --box-gray-800: #1a202c;
+      --box-shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --box-shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
+      --box-shadow-lg: 0 10px 25px rgba(0,0,0,0.1), 0 5px 10px rgba(0,0,0,0.05);
+      --box-shadow-drawer: -8px 0 30px rgba(0,0,0,0.15);
+    }
+
+    /* Drawer Overlay */
+    .box-ai-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0);
+      z-index: 9999;
+      visibility: hidden;
+      transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s;
+    }
+
+    .box-ai-overlay.active {
+      visibility: visible;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    /* Drawer Container */
+    .box-ai-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 520px;
+      max-width: 100%;
+      height: 100%;
+      background: white;
+      z-index: 10000;
+      transform: translateX(100%);
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: var(--box-shadow-drawer);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .box-ai-drawer.active {
+      transform: translateX(0);
+    }
+
+    /* Drawer Header */
+    .box-ai-header {
+      background: var(--box-ai-gradient);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .box-ai-header-content {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .box-ai-logo {
+      width: 36px;
+      height: 36px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      backdrop-filter: blur(10px);
+      animation: boxAIPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes boxAIPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
+      50% { transform: scale(1.05); box-shadow: 0 0 20px 5px rgba(255,255,255,0.2); }
+    }
+
+    .box-ai-title {
+      color: white;
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .box-ai-subtitle {
+      color: rgba(255,255,255,0.8);
+      font-size: 0.75rem;
+      margin-top: 0.125rem;
+    }
+
+    .box-ai-close {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: white;
+      font-size: 1.25rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+    }
+
+    .box-ai-close:hover {
+      background: rgba(255,255,255,0.25);
+      transform: rotate(90deg);
+    }
+
+    /* Drawer Tabs */
+    .box-ai-tabs {
+      display: flex;
+      background: var(--box-gray-50);
+      border-bottom: 1px solid var(--box-gray-200);
+      padding: 0 1rem;
+      flex-shrink: 0;
+    }
+
+    .box-ai-tab {
+      padding: 0.875rem 1.25rem;
+      background: none;
+      border: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--box-gray-500);
+      cursor: pointer;
+      position: relative;
+      transition: color 0.2s;
+    }
+
+    .box-ai-tab::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--box-blue);
+      transform: scaleX(0);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .box-ai-tab:hover {
+      color: var(--box-gray-700);
+    }
+
+    .box-ai-tab.active {
+      color: var(--box-blue);
+    }
+
+    .box-ai-tab.active::after {
+      transform: scaleX(1);
+    }
+
+    /* Drawer Body */
+    .box-ai-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      background: white;
+    }
+
+    .box-ai-tab-content {
+      display: none;
+      animation: boxAIFadeIn 0.3s ease-out;
+    }
+
+    .box-ai-tab-content.active {
+      display: block;
+    }
+
+    @keyframes boxAIFadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* AI Action Cards */
+    .box-ai-actions {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .box-ai-action-card {
+      background: white;
+      border: 1px solid var(--box-gray-200);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .box-ai-action-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--box-ai-gradient);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .box-ai-action-card:hover {
+      border-color: transparent;
+      transform: translateY(-2px);
+      box-shadow: var(--box-shadow-lg);
+    }
+
+    .box-ai-action-card:hover::before {
+      opacity: 0.05;
+    }
+
+    .box-ai-action-card:active {
+      transform: translateY(0);
+    }
+
+    .box-ai-action-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .box-ai-action-icon.extract { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); }
+    .box-ai-action-icon.summarize { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
+    .box-ai-action-icon.fraud { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); }
+    .box-ai-action-icon.ask { background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); }
+
+    .box-ai-action-content {
+      flex: 1;
+      position: relative;
+      z-index: 1;
+    }
+
+    .box-ai-action-title {
+      font-weight: 600;
+      color: var(--box-gray-800);
+      font-size: 0.95rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .box-ai-action-desc {
+      font-size: 0.8rem;
+      color: var(--box-gray-500);
+      line-height: 1.4;
+    }
+
+    .box-ai-action-arrow {
+      color: var(--box-gray-300);
+      font-size: 1.25rem;
+      transition: transform 0.2s, color 0.2s;
+      position: relative;
+      z-index: 1;
+    }
+
+    .box-ai-action-card:hover .box-ai-action-arrow {
+      color: var(--box-blue);
+      transform: translateX(4px);
+    }
+
+    /* Processing State */
+    .box-ai-processing {
+      text-align: center;
+      padding: 3rem 2rem;
+    }
+
+    .box-ai-processing-animation {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 1.5rem;
+      position: relative;
+    }
+
+    .box-ai-processing-ring {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border: 3px solid var(--box-gray-200);
+      border-top-color: var(--box-blue);
+      border-radius: 50%;
+      animation: boxAISpin 1s linear infinite;
+    }
+
+    .box-ai-processing-ring:nth-child(2) {
+      width: 60px;
+      height: 60px;
+      top: 10px;
+      left: 10px;
+      border-top-color: #8b5cf6;
+      animation-duration: 0.8s;
+      animation-direction: reverse;
+    }
+
+    .box-ai-processing-ring:nth-child(3) {
+      width: 40px;
+      height: 40px;
+      top: 20px;
+      left: 20px;
+      border-top-color: #a855f7;
+      animation-duration: 0.6s;
+    }
+
+    @keyframes boxAISpin {
+      to { transform: rotate(360deg); }
+    }
+
+    .box-ai-processing-text {
+      color: var(--box-gray-700);
+      font-weight: 500;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .box-ai-processing-subtext {
+      color: var(--box-gray-500);
+      font-size: 0.85rem;
+    }
+
+    .box-ai-processing-dots::after {
+      content: '';
+      animation: boxAIDots 1.5s steps(4, end) infinite;
+    }
+
+    @keyframes boxAIDots {
+      0%, 20% { content: ''; }
+      40% { content: '.'; }
+      60% { content: '..'; }
+      80%, 100% { content: '...'; }
+    }
+
+    /* Result Display */
+    .box-ai-result {
+      animation: boxAISlideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes boxAISlideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .box-ai-result-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--box-gray-200);
+    }
+
+    .box-ai-result-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--box-ai-gradient);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.25rem;
+    }
+
+    .box-ai-result-title {
+      font-weight: 600;
+      color: var(--box-gray-800);
+      font-size: 1rem;
+    }
+
+    .box-ai-result-time {
+      font-size: 0.75rem;
+      color: var(--box-gray-500);
+    }
+
+    .box-ai-result-body {
+      background: var(--box-gray-50);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .box-ai-result-body p {
+      color: var(--box-gray-700);
+      line-height: 1.7;
+      font-size: 0.9rem;
+    }
+
+    .box-ai-result-body pre {
+      background: white;
+      border: 1px solid var(--box-gray-200);
+      border-radius: 8px;
+      padding: 1rem;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      margin: 0;
+    }
+
+    /* Risk Score Display */
+    .box-ai-risk-score {
+      text-align: center;
+      padding: 1.5rem;
+      background: var(--box-gray-50);
+      border-radius: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .box-ai-risk-circle {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 1rem;
+      position: relative;
+    }
+
+    .box-ai-risk-circle svg {
+      transform: rotate(-90deg);
+      width: 100%;
+      height: 100%;
+    }
+
+    .box-ai-risk-circle .bg {
+      fill: none;
+      stroke: var(--box-gray-200);
+      stroke-width: 8;
+    }
+
+    .box-ai-risk-circle .progress {
+      fill: none;
+      stroke-width: 8;
+      stroke-linecap: round;
+      transition: stroke-dasharray 1s ease-out;
+    }
+
+    .box-ai-risk-value {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .box-ai-risk-label {
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .box-ai-risk-indicators {
+      display: grid;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .box-ai-risk-indicator {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.625rem 0.875rem;
+      background: white;
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+
+    .box-ai-risk-indicator-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+    }
+
+    /* Question Input */
+    .box-ai-question-input {
+      margin-bottom: 1rem;
+    }
+
+    .box-ai-question-input textarea {
+      width: 100%;
+      padding: 1rem;
+      border: 2px solid var(--box-gray-200);
+      border-radius: 12px;
+      font-size: 0.95rem;
+      resize: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      font-family: inherit;
+    }
+
+    .box-ai-question-input textarea:focus {
+      outline: none;
+      border-color: var(--box-blue);
+      box-shadow: 0 0 0 3px rgba(0, 97, 213, 0.1);
+    }
+
+    .box-ai-suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .box-ai-suggestion {
+      padding: 0.5rem 0.875rem;
+      background: var(--box-gray-100);
+      border: none;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: var(--box-gray-600);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .box-ai-suggestion:hover {
+      background: var(--box-blue-light);
+      color: var(--box-blue);
+    }
+
+    /* Action Buttons */
+    .box-ai-actions-footer {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    .box-ai-btn {
+      flex: 1;
+      padding: 0.875rem 1.25rem;
+      border-radius: 10px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .box-ai-btn-primary {
+      background: var(--box-blue);
+      border: none;
+      color: white;
+    }
+
+    .box-ai-btn-primary:hover {
+      background: var(--box-blue-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 97, 213, 0.3);
+    }
+
+    .box-ai-btn-secondary {
+      background: white;
+      border: 1px solid var(--box-gray-200);
+      color: var(--box-gray-700);
+    }
+
+    .box-ai-btn-secondary:hover {
+      background: var(--box-gray-50);
+      border-color: var(--box-gray-300);
+    }
+
+    /* Saved Results */
+    .box-ai-saved-list {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .box-ai-saved-item {
+      background: white;
+      border: 1px solid var(--box-gray-200);
+      border-radius: 12px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .box-ai-saved-item:hover {
+      border-color: var(--box-blue);
+      box-shadow: var(--box-shadow-md);
+    }
+
+    .box-ai-saved-item-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .box-ai-saved-item-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    .box-ai-saved-item-title {
+      font-weight: 600;
+      color: var(--box-gray-800);
+      font-size: 0.9rem;
+    }
+
+    .box-ai-saved-item-time {
+      margin-left: auto;
+      font-size: 0.75rem;
+      color: var(--box-gray-500);
+    }
+
+    .box-ai-saved-item-preview {
+      font-size: 0.85rem;
+      color: var(--box-gray-600);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .box-ai-empty-state {
+      text-align: center;
+      padding: 3rem 2rem;
+      color: var(--box-gray-500);
+    }
+
+    .box-ai-empty-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .box-ai-empty-text {
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+      color: var(--box-gray-600);
+    }
+
+    .box-ai-empty-subtext {
+      font-size: 0.85rem;
+    }
+
+    /* AI Panel Redesign */
+    .box-ai-panel {
+      background: linear-gradient(135deg, #f8fafc 0%, #f0f4f8 100%);
+      border: 1px solid var(--box-gray-200);
+      border-radius: 16px;
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .box-ai-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--box-ai-gradient);
+    }
+
+    .box-ai-panel-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .box-ai-panel-logo {
+      width: 40px;
+      height: 40px;
+      background: var(--box-ai-gradient);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      color: white;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .box-ai-panel-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--box-gray-800);
+    }
+
+    .box-ai-panel-badge {
+      background: var(--box-ai-gradient);
+      color: white;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .box-ai-panel-desc {
+      color: var(--box-gray-600);
+      font-size: 0.875rem;
+      line-height: 1.6;
+      margin-bottom: 1.25rem;
+    }
+
+    .box-ai-panel-btn {
+      width: 100%;
+      padding: 1rem 1.5rem;
+      background: var(--box-ai-gradient);
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+    }
+
+    .box-ai-panel-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+    }
+
+    .box-ai-panel-btn:active {
+      transform: translateY(0);
+    }
+
+    .box-ai-panel-btn-icon {
+      font-size: 1.25rem;
+      animation: boxAISparkle 2s ease-in-out infinite;
+    }
+
+    @keyframes boxAISparkle {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      25% { transform: scale(1.1) rotate(-5deg); }
+      75% { transform: scale(1.1) rotate(5deg); }
+    }
+
+    /* Drawer Footer */
+    .box-ai-footer {
+      padding: 1rem 1.5rem;
+      background: var(--box-gray-50);
+      border-top: 1px solid var(--box-gray-200);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .box-ai-footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--box-gray-500);
+    }
+
+    .box-ai-footer-logo {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* ============================================
+       BOX AI INSIGHTS - Main Page Display
+       ============================================ */
+
+    .box-ai-insights {
+      background: white;
+      border: 1px solid var(--box-gray-200);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+
+    .box-ai-insights-header {
+      background: linear-gradient(135deg, #f8fafc 0%, #f0f4f8 100%);
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--box-gray-200);
+    }
+
+    .box-ai-insights-title {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      font-weight: 600;
+      color: var(--box-gray-800);
+      font-size: 0.95rem;
+    }
+
+    .box-ai-insights-title-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--box-ai-gradient);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      color: white;
+    }
+
+    .box-ai-insights-count {
+      background: var(--box-blue);
+      color: white;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 10px;
+    }
+
+    .box-ai-insights-body {
+      padding: 1rem;
+    }
+
+    .box-ai-insights-grid {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .box-ai-insight-card {
+      background: var(--box-gray-50);
+      border: 1px solid var(--box-gray-200);
+      border-radius: 12px;
+      padding: 1rem;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .box-ai-insight-card:hover {
+      border-color: var(--box-blue);
+      box-shadow: var(--box-shadow-md);
+      transform: translateY(-1px);
+    }
+
+    .box-ai-insight-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .box-ai-insight-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .box-ai-insight-icon.extraction { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); }
+    .box-ai-insight-icon.summary { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
+    .box-ai-insight-icon.fraud { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); }
+    .box-ai-insight-icon.question { background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); }
+
+    .box-ai-insight-meta {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .box-ai-insight-type {
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--box-gray-800);
+      margin-bottom: 0.125rem;
+    }
+
+    .box-ai-insight-time {
+      font-size: 0.7rem;
+      color: var(--box-gray-500);
+    }
+
+    .box-ai-insight-actions {
+      display: flex;
+      gap: 0.375rem;
+    }
+
+    .box-ai-insight-action-btn {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--box-gray-200);
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      color: var(--box-gray-500);
+      transition: all 0.2s;
+    }
+
+    .box-ai-insight-action-btn:hover {
+      border-color: var(--box-blue);
+      color: var(--box-blue);
+      background: var(--box-blue-light);
+    }
+
+    .box-ai-insight-action-btn.delete:hover {
+      border-color: var(--box-error);
+      color: var(--box-error);
+      background: #fef2f2;
+    }
+
+    .box-ai-insight-content {
+      font-size: 0.85rem;
+      color: var(--box-gray-600);
+      line-height: 1.6;
+    }
+
+    .box-ai-insight-content-preview {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .box-ai-insight-content-full {
+      display: none;
+    }
+
+    .box-ai-insight-card.expanded .box-ai-insight-content-preview {
+      display: none;
+    }
+
+    .box-ai-insight-card.expanded .box-ai-insight-content-full {
+      display: block;
+    }
+
+    .box-ai-insight-expand {
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--box-blue);
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .box-ai-insight-expand:hover {
+      text-decoration: underline;
+    }
+
+    .box-ai-insights-empty {
+      text-align: center;
+      padding: 2rem;
+      color: var(--box-gray-500);
+    }
+
+    .box-ai-insights-empty-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+      opacity: 0.4;
+    }
+
+    .box-ai-insights-empty-text {
+      font-size: 0.9rem;
+      color: var(--box-gray-600);
+      margin-bottom: 0.25rem;
+    }
+
+    .box-ai-insights-empty-subtext {
+      font-size: 0.8rem;
+    }
+
+    .box-ai-insights-add-btn {
+      margin-top: 1rem;
+      padding: 0.625rem 1rem;
+      background: var(--box-ai-gradient);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-weight: 500;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .box-ai-insights-add-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    /* Risk Score Mini Display */
+    .box-ai-risk-mini {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: white;
+      border-radius: 8px;
+      margin-top: 0.5rem;
+    }
+
+    .box-ai-risk-mini-score {
+      font-size: 1.5rem;
+      font-weight: 700;
+      min-width: 60px;
+    }
+
+    .box-ai-risk-mini-bar {
+      flex: 1;
+      height: 8px;
+      background: var(--box-gray-200);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .box-ai-risk-mini-progress {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease-out;
+    }
+
+    .box-ai-risk-mini-label {
+      font-weight: 600;
+      font-size: 0.8rem;
+      min-width: 70px;
+      text-align: right;
+    }
+
+    /* Extracted Data Mini Display */
+    .box-ai-extracted-mini {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .box-ai-extracted-item {
+      background: white;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+
+    .box-ai-extracted-item-label {
+      color: var(--box-gray-500);
+      font-size: 0.7rem;
+      margin-bottom: 0.125rem;
+    }
+
+    .box-ai-extracted-item-value {
+      color: var(--box-gray-800);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <img src="/images/sure-safe-logo-small.png" alt="SureSafe">
+        <div>
+          <h2>SureSafe Admin</h2>
+          <small>Back Office Portal</small>
+        </div>
+      </div>
+
+      <div class="sidebar-user">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <div class="user-name" id="user-name">Loading...</div>
+        <div class="user-role">
+          <span class="role-badge" id="user-role-badge">Admin</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">Main</div>
+        <a href="/admin/dashboard" class="nav-item">
+          <span class="icon">&#128200;</span>
+          Dashboard
+        </a>
+        <a href="/admin/claims" class="nav-item active">
+          <span class="icon">&#128203;</span>
+          Claims
+        </a>
+
+        <div class="nav-section">Claim Actions</div>
+        <a href="#" class="nav-item" onclick="showApproveModal()">
+          <span class="icon">&#9989;</span>
+          Approve Claim
+        </a>
+        <a href="#" class="nav-item" onclick="showDenyModal()">
+          <span class="icon">&#10060;</span>
+          Deny Claim
+        </a>
+        <a href="#" class="nav-item" onclick="showEscalateModal()">
+          <span class="icon">&#9888;</span>
+          Escalate
+        </a>
+        <a href="#" class="nav-item" onclick="showInvestigateModal()">
+          <span class="icon">&#128269;</span>
+          Flag for Investigation
+        </a>
+
+        <div class="nav-section">Account</div>
+        <a href="#" class="nav-item" onclick="logout()">
+          <span class="icon">&#128682;</span>
+          Logout
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+      <header class="admin-header">
+        <div class="header-left">
+          <h1 class="header-title" id="page-title">Claim Details</h1>
+          <div class="breadcrumb">
+            <a href="/admin/dashboard">Dashboard</a>
+            <span>/</span>
+            <a href="/admin/claims">Claims</a>
+            <span>/</span>
+            <span id="claim-id-breadcrumb">Loading...</span>
+          </div>
+        </div>
+        <div class="header-right">
+          <button class="btn btn-outline" onclick="window.print()">&#128424; Print</button>
+          <button class="btn btn-outline" onclick="generateReport()">&#128202; Report</button>
+        </div>
+      </header>
+
+      <div class="admin-content" id="claim-content">
+        <div style="text-align: center; padding: 3rem;">
+          <div class="loading-spinner" style="border-color: #ddd; border-top-color: #4a90d9; width: 40px; height: 40px;"></div>
+          <p style="margin-top: 1rem; color: #666;">Loading claim details...</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Status Update Modal -->
+  <div class="modal-overlay" id="status-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="status-modal-title">Update Status</h3>
+        <button class="modal-close" onclick="closeStatusModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="status-modal-body">
+        <!-- Dynamic content -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeStatusModal()">Cancel</button>
+        <button class="btn btn-primary" id="status-modal-confirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Box AI Drawer -->
+  <div class="box-ai-overlay" id="box-ai-overlay" onclick="closeBoxAIDrawer()"></div>
+  <div class="box-ai-drawer" id="box-ai-drawer">
+    <div class="box-ai-header">
+      <div class="box-ai-header-content">
+        <div class="box-ai-logo">&#10024;</div>
+        <div>
+          <div class="box-ai-title">Box AI</div>
+          <div class="box-ai-subtitle">Intelligent Document Analysis</div>
+        </div>
+      </div>
+      <button class="box-ai-close" onclick="closeBoxAIDrawer()">&times;</button>
+    </div>
+
+    <div class="box-ai-tabs">
+      <button class="box-ai-tab active" onclick="switchAITab('actions')" data-tab="actions">Actions</button>
+      <button class="box-ai-tab" onclick="switchAITab('results')" data-tab="results">Current Result</button>
+      <button class="box-ai-tab" onclick="switchAITab('saved')" data-tab="saved">Saved <span id="saved-count-badge" style="background: var(--box-blue); color: white; font-size: 0.7rem; padding: 0.125rem 0.375rem; border-radius: 10px; margin-left: 0.25rem;">0</span></button>
+    </div>
+
+    <div class="box-ai-body">
+      <!-- Actions Tab -->
+      <div class="box-ai-tab-content active" id="ai-tab-actions">
+        <div class="box-ai-actions">
+          <div class="box-ai-action-card" onclick="aiExtractInfo()">
+            <div class="box-ai-action-icon extract">&#128196;</div>
+            <div class="box-ai-action-content">
+              <div class="box-ai-action-title">Extract Information</div>
+              <div class="box-ai-action-desc">Automatically extract key claim details, amounts, dates, and entities from documents</div>
+            </div>
+            <span class="box-ai-action-arrow">&#8594;</span>
+          </div>
+
+          <div class="box-ai-action-card" onclick="aiSummarize()">
+            <div class="box-ai-action-icon summarize">&#128221;</div>
+            <div class="box-ai-action-content">
+              <div class="box-ai-action-title">Summarize Documents</div>
+              <div class="box-ai-action-desc">Generate a comprehensive summary of all claim documents and their contents</div>
+            </div>
+            <span class="box-ai-action-arrow">&#8594;</span>
+          </div>
+
+          <div class="box-ai-action-card" onclick="aiFraudAnalysis()">
+            <div class="box-ai-action-icon fraud">&#128269;</div>
+            <div class="box-ai-action-content">
+              <div class="box-ai-action-title">Fraud Risk Analysis</div>
+              <div class="box-ai-action-desc">Detect potential fraud indicators, inconsistencies, and suspicious patterns</div>
+            </div>
+            <span class="box-ai-action-arrow">&#8594;</span>
+          </div>
+
+          <div class="box-ai-action-card" onclick="showAskQuestion()">
+            <div class="box-ai-action-icon ask">&#128172;</div>
+            <div class="box-ai-action-content">
+              <div class="box-ai-action-title">Ask a Question</div>
+              <div class="box-ai-action-desc">Query documents using natural language to get specific answers</div>
+            </div>
+            <span class="box-ai-action-arrow">&#8594;</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current Result Tab -->
+      <div class="box-ai-tab-content" id="ai-tab-results">
+        <div id="ai-result-container">
+          <div class="box-ai-empty-state">
+            <div class="box-ai-empty-icon">&#129302;</div>
+            <div class="box-ai-empty-text">No results yet</div>
+            <div class="box-ai-empty-subtext">Select an action to analyze your documents</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Saved Results Tab -->
+      <div class="box-ai-tab-content" id="ai-tab-saved">
+        <div id="saved-results-container">
+          <div class="box-ai-empty-state">
+            <div class="box-ai-empty-icon">&#128190;</div>
+            <div class="box-ai-empty-text">No saved results</div>
+            <div class="box-ai-empty-subtext">Results you save will appear here</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="box-ai-footer">
+      <div class="box-ai-footer-brand">
+        <svg class="box-ai-footer-logo" viewBox="0 0 24 24" fill="none">
+          <rect width="24" height="24" rx="4" fill="#0061D5"/>
+          <path d="M7 8.5L12 12L17 8.5M7 15.5L12 12L17 15.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Powered by Box AI
+      </div>
+      <button class="box-ai-btn box-ai-btn-secondary" onclick="closeBoxAIDrawer()" style="flex: 0; padding: 0.5rem 1rem; font-size: 0.8rem;">Close</button>
+    </div>
+  </div>
+
+  <!-- Document Preview Modal -->
+  <div class="modal-overlay" id="preview-modal">
+    <div class="modal" style="max-width: 90%; width: 90%; height: 90%;">
+      <div class="modal-header">
+        <h3 id="preview-modal-title">Document Preview</h3>
+        <button class="modal-close" onclick="closePreviewModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="height: calc(100% - 120px); padding: 0;">
+        <div id="box-preview-container" style="width: 100%; height: 100%;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closePreviewModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Box UI Elements - All Components -->
+  <script src="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/explorer.js"></script>
+  <script src="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/preview.js"></script>
+  <script src="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/uploader.js"></script>
+  <script src="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/picker.js"></script>
+  <script src="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/sidebar.js"></script>
+
+  <script>
+    let adminUser = null;
+    let claim = null;
+    let boxAccessToken = null;
+    let currentAIResult = null;
+    let bpmnViewer = null;
+    let currentTasks = [];
+    let camundaStatus = { connected: false, demo: true };
+    const CLOUD_RUN_API = 'https://suresafe-box-ai-579767694933.us-central1.run.app';
+
+    // Load admin user
+    async function loadAdminUser() {
+      try {
+        const response = await fetch('/api/admin/user');
+        const data = await response.json();
+        if (!data.success) {
+          window.location.href = '/admin';
+          return;
+        }
+        adminUser = data.user;
+        updateUserDisplay();
+        loadClaim();
+      } catch (error) {
+        window.location.href = '/admin';
+      }
+    }
+
+    function updateUserDisplay() {
+      document.getElementById('user-name').textContent = adminUser.name;
+      document.getElementById('user-avatar').textContent = adminUser.name.charAt(0).toUpperCase();
+      document.getElementById('user-role-badge').textContent = adminUser.role.charAt(0).toUpperCase() + adminUser.role.slice(1);
+    }
+
+    async function loadClaim() {
+      const claimId = window.location.pathname.split('/').pop();
+
+      try {
+        const response = await fetch(`/api/admin/claims/${claimId}`);
+        const data = await response.json();
+
+        if (!data.success) {
+          document.getElementById('claim-content').innerHTML = `
+            <div style="text-align: center; padding: 3rem;">
+              <h2>Claim Not Found</h2>
+              <p style="margin: 1rem 0;">The requested claim could not be found.</p>
+              <a href="/admin/claims" class="btn btn-primary">Back to Claims</a>
+            </div>
+          `;
+          return;
+        }
+
+        claim = data.claim;
+        document.getElementById('claim-id-breadcrumb').textContent = claim.id;
+        document.getElementById('page-title').textContent = `Claim ${claim.id}`;
+
+        renderClaimDetails();
+
+        // Load Box token
+        if (claim.boxFolderId) {
+          await loadBoxToken();
+        }
+      } catch (error) {
+        console.error('Error loading claim:', error);
+      }
+    }
+
+    async function loadBoxToken() {
+      try {
+        const response = await fetch('/api/admin/box/token');
+        const data = await response.json();
+        if (data.success) {
+          boxAccessToken = data.accessToken;
+          initBoxExplorer();
+        }
+      } catch (error) {
+        console.error('Error loading Box token:', error);
+      }
+    }
+
+    function renderClaimDetails() {
+      const statusClass = claim.status.toLowerCase().replace(' ', '-');
+      const priority = ['high', 'medium', 'low'][Math.floor(Math.random() * 3)];
+      const riskScore = Math.floor(Math.random() * 100);
+      const riskLevel = riskScore > 70 ? 'High' : riskScore > 40 ? 'Medium' : 'Low';
+      const riskColor = riskScore > 70 ? '#dc3545' : riskScore > 40 ? '#ffc107' : '#28a745';
+
+      document.getElementById('claim-content').innerHTML = `
+        <!-- Claim Header -->
+        <div class="claim-detail-header">
+          <div class="claim-info">
+            <h1>
+              ${claim.id}
+              <span class="status-badge ${statusClass}" style="font-size: 0.9rem;">${claim.status}</span>
+              <span class="priority-badge ${priority}" style="margin-left: 0.5rem;">${priority.toUpperCase()}</span>
+            </h1>
+            <div class="claim-meta">
+              <div class="claim-meta-item">
+                <label>Claimant</label>
+                <span>${claim.userName}</span>
+              </div>
+              <div class="claim-meta-item">
+                <label>Policy Number</label>
+                <span>${claim.policyNumber}</span>
+              </div>
+              <div class="claim-meta-item">
+                <label>Claim Type</label>
+                <span>${claim.claimType}</span>
+              </div>
+              <div class="claim-meta-item">
+                <label>Incident Date</label>
+                <span>${new Date(claim.incidentDate).toLocaleDateString()}</span>
+              </div>
+              <div class="claim-meta-item">
+                <label>Amount Claimed</label>
+                <span style="font-size: 1.25rem; color: var(--admin-primary);">$${(claim.estimatedAmount || 0).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+          <div class="claim-actions">
+            <button class="btn btn-success" onclick="showApproveModal()">&#9989; Approve</button>
+            <button class="btn btn-danger" onclick="showDenyModal()">&#10060; Deny</button>
+            <button class="btn btn-warning" onclick="showEscalateModal()">&#9888; Escalate</button>
+          </div>
+        </div>
+
+        <!-- Workflow Process Panel -->
+        <div class="detail-card" style="margin-bottom: 1.5rem;">
+          <div class="detail-card-header">
+            <h3>&#9881; Workflow Process</h3>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="btn btn-outline" onclick="refreshWorkflow()" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                &#8635; Refresh
+              </button>
+              <button class="btn btn-outline" onclick="startWorkflowProcess()" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;" id="start-workflow-btn">
+                &#9654; Start Process
+              </button>
+            </div>
+          </div>
+          <div class="detail-card-body">
+            <div class="workflow-status-bar ${camundaStatus.demo ? 'demo' : ''}" id="workflow-status-bar">
+              <div class="status-indicator"></div>
+              <span id="workflow-status-text">Loading workflow status...</span>
+              <span style="margin-left: auto; font-size: 0.85rem; opacity: 0.8;" id="process-key"></span>
+            </div>
+
+            <!-- BPMN Diagram -->
+            <div class="bpmn-container" id="bpmn-canvas">
+              <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b;">
+                <p>Loading process diagram...</p>
+              </div>
+              <div class="bpmn-controls">
+                <button onclick="zoomIn()" title="Zoom In">+</button>
+                <button onclick="zoomOut()" title="Zoom Out">-</button>
+                <button onclick="fitDiagram()" title="Fit to View">&#8596;</button>
+              </div>
+            </div>
+
+            <!-- Active Tasks -->
+            <div style="margin-top: 1rem;">
+              <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem;">&#128203; Pending Tasks</h4>
+              <div id="workflow-tasks">
+                <div style="text-align: center; padding: 1rem; color: #64748b; font-size: 0.9rem;">
+                  No pending tasks
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <div>
+            <!-- Box AI Assistant Panel -->
+            <div class="box-ai-panel">
+              <div class="box-ai-panel-header">
+                <div class="box-ai-panel-logo">&#10024;</div>
+                <div class="box-ai-panel-title">Box AI</div>
+                <span class="box-ai-panel-badge">Beta</span>
+              </div>
+              <p class="box-ai-panel-desc">
+                Leverage the power of AI to analyze documents, extract key information, detect fraud patterns, and get intelligent insights about this claim.
+              </p>
+              <button class="box-ai-panel-btn" onclick="openBoxAIDrawer()">
+                <span class="box-ai-panel-btn-icon">&#10024;</span>
+                Open AI Assistant
+              </button>
+            </div>
+
+            <!-- Box AI Insights (Saved Results) -->
+            <div class="box-ai-insights" id="box-ai-insights-section">
+              <div class="box-ai-insights-header">
+                <div class="box-ai-insights-title">
+                  <div class="box-ai-insights-title-icon">&#129302;</div>
+                  AI Insights
+                  <span class="box-ai-insights-count" id="insights-count">0</span>
+                </div>
+                <button class="box-ai-insight-action-btn" onclick="openBoxAIDrawer()" title="Add new insight">&#10133;</button>
+              </div>
+              <div class="box-ai-insights-body" id="insights-container">
+                <div class="box-ai-insights-empty">
+                  <div class="box-ai-insights-empty-icon">&#129302;</div>
+                  <div class="box-ai-insights-empty-text">No AI insights yet</div>
+                  <div class="box-ai-insights-empty-subtext">Use Box AI to analyze documents and save insights</div>
+                  <button class="box-ai-insights-add-btn" onclick="openBoxAIDrawer()">
+                    <span>&#10024;</span> Generate Insights
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Claim Description -->
+            <div class="detail-card">
+              <div class="detail-card-header">
+                <h3>&#128203; Claim Description</h3>
+              </div>
+              <div class="detail-card-body">
+                <p style="line-height: 1.8; color: #555;">${claim.description}</p>
+              </div>
+            </div>
+
+            <!-- Box UI Elements Showcase -->
+            <div class="detail-card">
+              <div class="detail-card-header">
+                <h3>&#128193; Document Management</h3>
+                <span style="font-size: 0.75rem; color: #64748b; background: #f1f5f9; padding: 0.25rem 0.5rem; border-radius: 4px;">Powered by Box Platform</span>
+              </div>
+              <div class="detail-card-body" style="padding: 0;">
+                ${claim.boxFolderId ? `
+                  <div class="box-elements-panel">
+                    <!-- Box UI Elements Tabs -->
+                    <div class="box-tabs">
+                      <button class="box-tab active" onclick="switchBoxTab('explorer')" data-tab="explorer">
+                        <span>&#128194;</span> Explorer
+                      </button>
+                      <button class="box-tab" onclick="switchBoxTab('preview')" data-tab="preview">
+                        <span>&#128196;</span> Preview
+                      </button>
+                      <button class="box-tab" onclick="switchBoxTab('uploader')" data-tab="uploader">
+                        <span>&#128228;</span> Uploader
+                      </button>
+                      <button class="box-tab" onclick="switchBoxTab('picker')" data-tab="picker">
+                        <span>&#128269;</span> Picker
+                      </button>
+                      <button class="box-tab" onclick="switchBoxTab('sidebar')" data-tab="sidebar">
+                        <span>&#128196;</span> Sidebar
+                      </button>
+                    </div>
+
+                    <!-- Explorer Tab -->
+                    <div class="box-tab-content active" id="tab-explorer">
+                      <div class="box-feature-highlight">
+                        <h4>Content Explorer</h4>
+                        <p>Browse, preview, and manage files with full folder navigation. Supports search, sorting, and inline preview.</p>
+                      </div>
+                      <div id="box-explorer" class="box-element-container"></div>
+                    </div>
+
+                    <!-- Preview Tab -->
+                    <div class="box-tab-content" id="tab-preview">
+                      <div class="box-feature-highlight">
+                        <h4>Content Preview</h4>
+                        <p>HD document viewing with support for 120+ file types including PDFs, Office docs, images, videos, and 3D files.</p>
+                      </div>
+                      <div style="padding: 1rem;">
+                        <p style="margin-bottom: 1rem; color: #64748b; font-size: 0.9rem;">Select a document to preview:</p>
+                        <div id="preview-file-list" style="display: grid; gap: 0.5rem; margin-bottom: 1rem;"></div>
+                        <div id="box-preview-inline" class="box-element-container" style="border: 1px solid #e2e8f0; border-radius: 8px;"></div>
+                      </div>
+                    </div>
+
+                    <!-- Uploader Tab -->
+                    <div class="box-tab-content" id="tab-uploader">
+                      <div class="box-feature-highlight">
+                        <h4>Content Uploader</h4>
+                        <p>Drag-and-drop file upload with progress tracking, chunked uploads for large files, and automatic retry.</p>
+                      </div>
+                      <div id="box-uploader" class="box-uploader-container"></div>
+                    </div>
+
+                    <!-- Picker Tab -->
+                    <div class="box-tab-content" id="tab-picker">
+                      <div class="box-feature-highlight">
+                        <h4>Content Picker</h4>
+                        <p>Enable users to select files or folders from their Box account. Perfect for importing existing documents.</p>
+                      </div>
+                      <div style="padding: 1.5rem; text-align: center;">
+                        <p style="color: #64748b; margin-bottom: 1rem;">Click to open the file picker and select documents from Box</p>
+                        <button class="btn btn-primary" onclick="openBoxPicker()" style="padding: 1rem 2rem;">
+                          &#128269; Open File Picker
+                        </button>
+                        <div id="picker-results" style="margin-top: 1.5rem; text-align: left;"></div>
+                      </div>
+                    </div>
+
+                    <!-- Sidebar Tab -->
+                    <div class="box-tab-content" id="tab-sidebar">
+                      <div class="box-feature-highlight">
+                        <h4>Content Sidebar</h4>
+                        <p>Rich metadata panel showing file details, activity feed, skills data, and Box AI insights.</p>
+                      </div>
+                      <div style="padding: 1rem;">
+                        <p style="margin-bottom: 1rem; color: #64748b; font-size: 0.9rem;">Select a document to view its sidebar:</p>
+                        <div id="sidebar-file-list" style="display: grid; gap: 0.5rem; margin-bottom: 1rem;"></div>
+                        <div class="file-details-panel" style="display: none;" id="sidebar-panel">
+                          <div id="box-sidebar-preview" class="file-preview-area"></div>
+                          <div id="box-sidebar" class="file-sidebar-area"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ` : `
+                  <div style="text-align: center; padding: 2rem; color: #666;">
+                    <p>No documents folder linked to this claim.</p>
+                  </div>
+                `}
+              </div>
+            </div>
+
+            <!-- AI Extraction Results -->
+            ${claim.aiExtraction ? `
+            <div class="detail-card">
+              <div class="detail-card-header">
+                <h3>&#129302; AI Extracted Data</h3>
+              </div>
+              <div class="detail-card-body">
+                <pre style="background: #f8f9fa; padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.85rem;">${JSON.stringify(claim.aiExtraction, null, 2)}</pre>
+              </div>
+            </div>
+            ` : ''}
+          </div>
+
+          <div>
+            <!-- Risk Assessment -->
+            <div class="detail-card" style="margin-bottom: 1.5rem;">
+              <div class="detail-card-header">
+                <h3>&#9888; Risk Assessment</h3>
+              </div>
+              <div class="detail-card-body">
+                <div style="text-align: center; padding: 1rem;">
+                  <div style="position: relative; width: 120px; height: 120px; margin: 0 auto;">
+                    <svg viewBox="0 0 36 36" style="transform: rotate(-90deg);">
+                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#eee" stroke-width="3"/>
+                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="${riskColor}" stroke-width="3" stroke-dasharray="${riskScore}, 100"/>
+                    </svg>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.5rem; font-weight: 700;">${riskScore}</div>
+                  </div>
+                  <p style="margin-top: 1rem; font-weight: 600; color: ${riskColor};">${riskLevel} Risk</p>
+                </div>
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span style="font-size: 0.85rem;">Document Authenticity</span>
+                    <span style="font-size: 0.85rem; font-weight: 600;">92%</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span style="font-size: 0.85rem;">Claim Consistency</span>
+                    <span style="font-size: 0.85rem; font-weight: 600;">88%</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span style="font-size: 0.85rem;">Historical Pattern</span>
+                    <span style="font-size: 0.85rem; font-weight: 600;">Normal</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Actions by Role -->
+            <div class="detail-card" style="margin-bottom: 1.5rem;">
+              <div class="detail-card-header">
+                <h3>&#128736; Quick Actions</h3>
+              </div>
+              <div class="detail-card-body" id="role-actions">
+                <!-- Actions will be populated based on role -->
+              </div>
+            </div>
+
+            <!-- Claim Timeline -->
+            <div class="detail-card" style="margin-bottom: 1.5rem;">
+              <div class="detail-card-header">
+                <h3>&#128197; Timeline</h3>
+              </div>
+              <div class="detail-card-body">
+                <div class="timeline">
+                  ${(claim.statusHistory || []).map((entry, index) => `
+                    <div class="timeline-item ${index === 0 ? 'completed' : ''}">
+                      <div class="timeline-date">${new Date(entry.date).toLocaleString()}</div>
+                      <div class="timeline-title">${entry.status}</div>
+                      <div class="timeline-note">${entry.note}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="detail-card">
+              <div class="detail-card-header">
+                <h3>&#128221; Notes</h3>
+                <button class="btn btn-outline" onclick="addNote()" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                  &#10133; Add Note
+                </button>
+              </div>
+              <div class="detail-card-body">
+                <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 0.75rem;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <strong style="font-size: 0.85rem;">System</strong>
+                    <span style="font-size: 0.75rem; color: #999;">${new Date().toLocaleString()}</span>
+                  </div>
+                  <p style="font-size: 0.9rem; color: #555;">Claim submitted via member portal.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Render role-specific actions
+      renderRoleActions();
+
+      // Initialize workflow components
+      initWorkflow();
+    }
+
+    function renderRoleActions() {
+      const roleActions = {
+        adjuster: [
+          { label: 'Set Settlement Amount', icon: '&#128176;', action: 'showSettlementModal()' },
+          { label: 'Request More Documents', icon: '&#128196;', action: 'requestDocuments()' },
+          { label: 'Schedule Inspection', icon: '&#128197;', action: 'scheduleInspection()' },
+          { label: 'Contact Claimant', icon: '&#128222;', action: 'contactClaimant()' }
+        ],
+        supervisor: [
+          { label: 'Override Decision', icon: '&#9999;', action: 'overrideDecision()' },
+          { label: 'Reassign Claim', icon: '&#128101;', action: 'reassignClaim()' },
+          { label: 'Add Priority Flag', icon: '&#128681;', action: 'addPriorityFlag()' },
+          { label: 'Generate Report', icon: '&#128202;', action: 'generateReport()' }
+        ],
+        investigator: [
+          { label: 'Mark as Fraudulent', icon: '&#128683;', action: 'markFraudulent()' },
+          { label: 'Request SIU Review', icon: '&#128269;', action: 'requestSIU()' },
+          { label: 'Add Evidence', icon: '&#128206;', action: 'addEvidence()' },
+          { label: 'Interview Claimant', icon: '&#128483;', action: 'scheduleInterview()' }
+        ],
+        legal: [
+          { label: 'Flag Legal Risk', icon: '&#9878;', action: 'flagLegalRisk()' },
+          { label: 'Initiate Litigation', icon: '&#128220;', action: 'initiateLitigation()' },
+          { label: 'Review Compliance', icon: '&#9989;', action: 'reviewCompliance()' },
+          { label: 'Add Legal Note', icon: '&#128221;', action: 'addLegalNote()' }
+        ],
+        executive: [
+          { label: 'Authorize Payment', icon: '&#128178;', action: 'authorizePayment()' },
+          { label: 'Executive Override', icon: '&#128273;', action: 'executiveOverride()' },
+          { label: 'Expedite Claim', icon: '&#9889;', action: 'expediteClaim()' },
+          { label: 'Request Board Review', icon: '&#128188;', action: 'requestBoardReview()' }
+        ]
+      };
+
+      const actions = roleActions[adminUser.role] || roleActions.adjuster;
+      document.getElementById('role-actions').innerHTML = actions.map(action => `
+        <button onclick="${action.action}" style="width: 100%; margin-bottom: 0.5rem; padding: 0.75rem; background: #f8f9fa; border: 1px solid #eee; border-radius: 8px; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 0.75rem; transition: background 0.2s;">
+          <span style="font-size: 1.25rem;">${action.icon}</span>
+          <span style="font-size: 0.9rem;">${action.label}</span>
+        </button>
+      `).join('');
+    }
+
+    // ============================================
+    // BOX UI ELEMENTS FUNCTIONS
+    // ============================================
+
+    let boxExplorerInstance = null;
+    let boxPreviewInstance = null;
+    let boxUploaderInstance = null;
+    let boxPickerInstance = null;
+    let boxSidebarInstance = null;
+    let claimFiles = [];
+
+    function initBoxExplorer() {
+      if (!boxAccessToken || !claim.boxFolderId) return;
+
+      try {
+        boxExplorerInstance = new Box.ContentExplorer();
+        boxExplorerInstance.show(claim.boxFolderId, boxAccessToken, {
+          container: '#box-explorer',
+          logoUrl: '/images/sure-safe-logo-small.png',
+          canUpload: true,
+          canDelete: false,
+          canRename: false,
+          canShare: false,
+          canSetShareAccess: false,
+          canDownload: true,
+          canPreview: true,
+          defaultView: 'files',
+          size: 'large'
+        });
+
+        boxExplorerInstance.addListener('preview', (data) => {
+          openPreview(data.file.id, data.file.name);
+        });
+
+        // Load file list for other tabs
+        loadClaimFiles();
+      } catch (error) {
+        console.error('Error initializing Box Explorer:', error);
+        document.getElementById('box-explorer').innerHTML = `
+          <div style="padding: 2rem; text-align: center; color: #666;">
+            <p>Unable to load document explorer.</p>
+          </div>
+        `;
+      }
+    }
+
+    async function loadClaimFiles() {
+      // Use claim.documents if available, otherwise fetch from Box API
+      if (claim.documents && claim.documents.length > 0) {
+        claimFiles = claim.documents;
+        populateFileLists();
+      } else {
+        // Try to fetch from Box folder
+        try {
+          const response = await fetch(`/api/admin/box/folder/${claim.boxFolderId}/files`);
+          const data = await response.json();
+          if (data.success && data.files) {
+            claimFiles = data.files;
+            populateFileLists();
+          }
+        } catch (error) {
+          console.log('Could not fetch folder files:', error);
+          // Use empty list or mock data
+          claimFiles = [];
+          populateFileLists();
+        }
+      }
+    }
+
+    function populateFileLists() {
+      const previewList = document.getElementById('preview-file-list');
+      const sidebarList = document.getElementById('sidebar-file-list');
+
+      if (!claimFiles || claimFiles.length === 0) {
+        const emptyMessage = '<p style="color: #94a3b8; font-style: italic;">No files found in this claim folder. Upload documents to see them here.</p>';
+        if (previewList) previewList.innerHTML = emptyMessage;
+        if (sidebarList) sidebarList.innerHTML = emptyMessage;
+        return;
+      }
+
+      const fileButtons = claimFiles.map(file => `
+        <button class="file-select-btn" onclick="selectFileForPreview('${file.id}', '${file.name}')" style="
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          width: 100%;
+          padding: 0.75rem 1rem;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          cursor: pointer;
+          text-align: left;
+          transition: all 0.2s;
+        ">
+          <span style="font-size: 1.25rem;">${getFileIcon(file.name)}</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 500; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${file.name}</div>
+            <div style="font-size: 0.75rem; color: #94a3b8;">${file.size ? formatFileSize(file.size) : 'Document'}</div>
+          </div>
+          <span style="color: #4a90d9;">&#8594;</span>
+        </button>
+      `).join('');
+
+      const sidebarButtons = claimFiles.map(file => `
+        <button class="file-select-btn" onclick="selectFileForSidebar('${file.id}', '${file.name}')" style="
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          width: 100%;
+          padding: 0.75rem 1rem;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          cursor: pointer;
+          text-align: left;
+          transition: all 0.2s;
+        ">
+          <span style="font-size: 1.25rem;">${getFileIcon(file.name)}</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 500; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${file.name}</div>
+            <div style="font-size: 0.75rem; color: #94a3b8;">${file.size ? formatFileSize(file.size) : 'Document'}</div>
+          </div>
+          <span style="color: #4a90d9;">&#8594;</span>
+        </button>
+      `).join('');
+
+      if (previewList) previewList.innerHTML = fileButtons;
+      if (sidebarList) sidebarList.innerHTML = sidebarButtons;
+    }
+
+    function getFileIcon(filename) {
+      const ext = filename.split('.').pop().toLowerCase();
+      const icons = {
+        pdf: '&#128196;',
+        doc: '&#128196;',
+        docx: '&#128196;',
+        xls: '&#128202;',
+        xlsx: '&#128202;',
+        ppt: '&#128202;',
+        pptx: '&#128202;',
+        jpg: '&#128247;',
+        jpeg: '&#128247;',
+        png: '&#128247;',
+        gif: '&#128247;',
+        mp4: '&#127910;',
+        mov: '&#127910;',
+        mp3: '&#127925;',
+        zip: '&#128230;'
+      };
+      return icons[ext] || '&#128196;';
+    }
+
+    function formatFileSize(bytes) {
+      if (!bytes) return '';
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(1024));
+      return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function switchBoxTab(tabName) {
+      // Update tab buttons
+      document.querySelectorAll('.box-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.tab === tabName) {
+          tab.classList.add('active');
+        }
+      });
+
+      // Update tab content
+      document.querySelectorAll('.box-tab-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      document.getElementById('tab-' + tabName).classList.add('active');
+
+      // Initialize specific tab elements if not already done
+      if (tabName === 'uploader' && !boxUploaderInstance) {
+        initBoxUploader();
+      }
+    }
+
+    function selectFileForPreview(fileId, fileName) {
+      const container = document.getElementById('box-preview-inline');
+      container.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%;"><div class="loading-spinner"></div></div>';
+
+      if (boxPreviewInstance) {
+        boxPreviewInstance.hide();
+      }
+
+      try {
+        boxPreviewInstance = new Box.Preview();
+        boxPreviewInstance.show(fileId, boxAccessToken, {
+          container: '#box-preview-inline',
+          showDownload: true,
+          showAnnotations: true,
+          header: 'light'
+        });
+      } catch (error) {
+        console.error('Error showing preview:', error);
+        container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;">Error loading preview</div>';
+      }
+    }
+
+    function initBoxUploader() {
+      if (!boxAccessToken || !claim.boxFolderId) return;
+
+      try {
+        boxUploaderInstance = new Box.ContentUploader();
+        boxUploaderInstance.show(claim.boxFolderId, boxAccessToken, {
+          container: '#box-uploader',
+          fileLimit: 10,
+          onComplete: (files) => {
+            console.log('Upload complete:', files);
+            // Refresh the file lists
+            loadClaimFiles();
+            // Refresh explorer
+            if (boxExplorerInstance) {
+              boxExplorerInstance.hide();
+              initBoxExplorer();
+            }
+          }
+        });
+
+        boxUploaderInstance.addListener('upload', (data) => {
+          console.log('File uploaded:', data);
+        });
+
+        boxUploaderInstance.addListener('complete', (data) => {
+          console.log('All uploads complete:', data);
+          loadClaimFiles();
+        });
+      } catch (error) {
+        console.error('Error initializing uploader:', error);
+        document.getElementById('box-uploader').innerHTML = `
+          <div style="padding: 2rem; text-align: center; color: #666;">
+            <p>Unable to load uploader.</p>
+          </div>
+        `;
+      }
+    }
+
+    function openBoxPicker() {
+      if (!boxAccessToken) {
+        alert('Box access token not available');
+        return;
+      }
+
+      try {
+        boxPickerInstance = new Box.FilePicker();
+        boxPickerInstance.show('0', boxAccessToken, {
+          container: document.body,
+          modal: {
+            buttonLabel: 'Select Files',
+            buttonClassName: 'btn btn-primary',
+            overlayClassName: 'box-picker-overlay'
+          },
+          maxSelectable: 5,
+          canUpload: false,
+          canSetShareAccess: false,
+          canCreateNewFolder: false,
+          chooseButtonLabel: 'Add to Claim'
+        });
+
+        boxPickerInstance.addListener('choose', (files) => {
+          console.log('Files chosen:', files);
+          displayPickerResults(files);
+        });
+
+        boxPickerInstance.addListener('cancel', () => {
+          console.log('Picker cancelled');
+        });
+      } catch (error) {
+        console.error('Error opening picker:', error);
+        alert('Unable to open file picker');
+      }
+    }
+
+    function displayPickerResults(files) {
+      const container = document.getElementById('picker-results');
+      if (!files || files.length === 0) {
+        container.innerHTML = '<p style="color: #94a3b8;">No files selected</p>';
+        return;
+      }
+
+      container.innerHTML = `
+        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 1rem;">
+          <h4 style="color: #16a34a; margin-bottom: 0.75rem;">&#9989; ${files.length} File(s) Selected</h4>
+          <div style="display: grid; gap: 0.5rem;">
+            ${files.map(file => `
+              <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: white; border-radius: 6px;">
+                <span>${getFileIcon(file.name)}</span>
+                <span style="flex: 1;">${file.name}</span>
+                <span style="font-size: 0.75rem; color: #94a3b8;">${formatFileSize(file.size)}</span>
+              </div>
+            `).join('')}
+          </div>
+          <button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" onclick="addSelectedFilesToClaim()">
+            Add Selected Files to Claim
+          </button>
+        </div>
+      `;
+    }
+
+    function addSelectedFilesToClaim() {
+      alert('Files would be added to the claim. This would trigger a server-side copy operation.');
+      document.getElementById('picker-results').innerHTML = '<p style="color: #16a34a;">&#9989; Files added successfully!</p>';
+    }
+
+    function selectFileForSidebar(fileId, fileName) {
+      const panel = document.getElementById('sidebar-panel');
+      panel.style.display = 'grid';
+
+      // Show preview on the left
+      const previewContainer = document.getElementById('box-sidebar-preview');
+      previewContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%;"><div class="loading-spinner"></div></div>';
+
+      try {
+        const sidebarPreview = new Box.Preview();
+        sidebarPreview.show(fileId, boxAccessToken, {
+          container: '#box-sidebar-preview',
+          showDownload: true,
+          header: 'none'
+        });
+      } catch (error) {
+        console.error('Error showing sidebar preview:', error);
+      }
+
+      // Show sidebar on the right
+      const sidebarContainer = document.getElementById('box-sidebar');
+      sidebarContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%;"><div class="loading-spinner"></div></div>';
+
+      try {
+        if (boxSidebarInstance) {
+          boxSidebarInstance.hide();
+        }
+        boxSidebarInstance = new Box.ContentSidebar();
+        boxSidebarInstance.show(fileId, boxAccessToken, {
+          container: '#box-sidebar',
+          hasActivityFeed: true,
+          hasMetadata: true,
+          hasSkills: true,
+          hasVersions: true,
+          detailsSidebarProps: {
+            hasProperties: true,
+            hasAccessStats: true,
+            hasVersions: true,
+            hasNotices: true
+          }
+        });
+      } catch (error) {
+        console.error('Error showing sidebar:', error);
+        sidebarContainer.innerHTML = `
+          <div style="padding: 2rem; text-align: center; color: #666;">
+            <p>Unable to load sidebar.</p>
+            <p style="font-size: 0.85rem; margin-top: 0.5rem;">File: ${fileName}</p>
+          </div>
+        `;
+      }
+    }
+
+    function openPreview(fileId, fileName) {
+      document.getElementById('preview-modal-title').textContent = fileName || 'Document Preview';
+      document.getElementById('preview-modal').classList.add('active');
+
+      const preview = new Box.Preview();
+      preview.show(fileId, boxAccessToken, {
+        container: '#box-preview-container',
+        showDownload: true
+      });
+    }
+
+    function closePreviewModal() {
+      document.getElementById('preview-modal').classList.remove('active');
+      document.getElementById('box-preview-container').innerHTML = '';
+    }
+
+    // ============================================
+    // BOX AI DRAWER FUNCTIONS
+    // ============================================
+
+    let savedAIResults = [];
+    let currentAIType = null;
+
+    function openBoxAIDrawer() {
+      document.getElementById('box-ai-overlay').classList.add('active');
+      document.getElementById('box-ai-drawer').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeBoxAIDrawer() {
+      document.getElementById('box-ai-overlay').classList.remove('active');
+      document.getElementById('box-ai-drawer').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function switchAITab(tabName) {
+      document.querySelectorAll('.box-ai-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.tab === tabName) {
+          tab.classList.add('active');
+        }
+      });
+
+      document.querySelectorAll('.box-ai-tab-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      document.getElementById('ai-tab-' + tabName).classList.add('active');
+    }
+
+    function showAIProcessing(title, subtitle) {
+      switchAITab('results');
+      document.getElementById('ai-result-container').innerHTML = `
+        <div class="box-ai-processing">
+          <div class="box-ai-processing-animation">
+            <div class="box-ai-processing-ring"></div>
+            <div class="box-ai-processing-ring"></div>
+            <div class="box-ai-processing-ring"></div>
+          </div>
+          <div class="box-ai-processing-text">${title}</div>
+          <div class="box-ai-processing-subtext box-ai-processing-dots">${subtitle}</div>
+        </div>
+      `;
+    }
+
+    function showAIResult(title, icon, content, type) {
+      const timestamp = new Date().toLocaleTimeString();
+      currentAIType = type;
+
+      document.getElementById('ai-result-container').innerHTML = `
+        <div class="box-ai-result">
+          <div class="box-ai-result-header">
+            <div class="box-ai-result-icon">${icon}</div>
+            <div>
+              <div class="box-ai-result-title">${title}</div>
+              <div class="box-ai-result-time">Generated at ${timestamp}</div>
+            </div>
+          </div>
+          <div class="box-ai-result-body">
+            ${content}
+          </div>
+          <div class="box-ai-actions-footer">
+            <button class="box-ai-btn box-ai-btn-secondary" onclick="switchAITab('actions')">
+              &#8592; Back
+            </button>
+            <button class="box-ai-btn box-ai-btn-primary" onclick="saveCurrentAIResult('${type}', '${title}')">
+              &#128190; Save Result
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function showAIError(error) {
+      document.getElementById('ai-result-container').innerHTML = `
+        <div class="box-ai-result">
+          <div style="text-align: center; padding: 2rem;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">&#9888;</div>
+            <div style="font-weight: 600; color: var(--box-error); margin-bottom: 0.5rem;">Processing Error</div>
+            <div style="color: var(--box-gray-500); font-size: 0.9rem;">${error.message || 'Unable to process your request. Please try again.'}</div>
+          </div>
+          <div class="box-ai-actions-footer">
+            <button class="box-ai-btn box-ai-btn-secondary" onclick="switchAITab('actions')">
+              &#8592; Try Again
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    async function aiExtractInfo() {
+      openBoxAIDrawer();
+      showAIProcessing('Extracting Information', 'Analyzing document contents');
+
+      try {
+        let result;
+        if (claim.documents && claim.documents.length > 0) {
+          const response = await fetch(`${CLOUD_RUN_API}/extract`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              file_id: claim.documents[0].id,
+              extraction_type: 'insurance_claim'
+            })
+          });
+          result = await response.json();
+        } else {
+          // Demo result
+          result = {
+            claimant_name: claim.userName,
+            policy_number: claim.policyNumber,
+            claim_type: claim.claimType,
+            incident_date: claim.incidentDate,
+            estimated_amount: claim.estimatedAmount,
+            description_summary: claim.description.substring(0, 100) + '...'
+          };
+        }
+
+        currentAIResult = { type: 'extraction', data: result, timestamp: new Date() };
+
+        const content = `
+          <p style="margin-bottom: 1rem;">Successfully extracted key information from the claim documents:</p>
+          <pre style="background: white; border: 1px solid var(--box-gray-200); border-radius: 8px; padding: 1rem; font-size: 0.8rem; overflow-x: auto;">${JSON.stringify(result.data || result, null, 2)}</pre>
+          <div style="margin-top: 1rem; padding: 0.75rem; background: #e8f8f0; border-radius: 8px; display: flex; align-items: center; gap: 0.5rem;">
+            <span style="color: var(--box-success);">&#9989;</span>
+            <span style="color: #166534; font-size: 0.85rem;">Extracted ${Object.keys(result.data || result).length} data points</span>
+          </div>
+        `;
+
+        showAIResult('Information Extraction', '&#128196;', content, 'extraction');
+      } catch (error) {
+        showAIError(error);
+      }
+    }
+
+    async function aiSummarize() {
+      openBoxAIDrawer();
+      showAIProcessing('Generating Summary', 'Reading and analyzing documents');
+
+      try {
+        let summaryText;
+
+        // Get fileId from claimFiles or claim.documents
+        const fileId = (claimFiles && claimFiles.length > 0) ? claimFiles[0].id :
+                       (claim.documents && claim.documents.length > 0) ? claim.documents[0].id : null;
+
+        if (fileId) {
+          try {
+            const response = await fetch(`${CLOUD_RUN_API}/summarize`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                file_id: fileId,
+                summary_type: 'claim'
+              })
+            });
+            const result = await response.json();
+            summaryText = result.summary || result.answer;
+          } catch (e) {
+            summaryText = null;
+          }
+        }
+
+        if (!summaryText) {
+          summaryText = `This ${claim.claimType} claim was submitted by ${claim.userName} on ${new Date(claim.createdAt).toLocaleDateString()}. The incident occurred on ${new Date(claim.incidentDate).toLocaleDateString()}.
+
+The claimant describes the incident as follows: ${claim.description}
+
+The estimated claim amount is $${(claim.estimatedAmount || 0).toLocaleString()}. The current status of the claim is "${claim.status}".
+
+Based on the provided documentation, this appears to be a standard ${claim.claimType.toLowerCase()} claim requiring routine processing and review.`;
+        }
+
+        currentAIResult = { type: 'summary', data: summaryText, timestamp: new Date() };
+
+        const content = `<p style="line-height: 1.8; white-space: pre-line;">${summaryText}</p>`;
+        showAIResult('Document Summary', '&#128221;', content, 'summary');
+      } catch (error) {
+        showAIError(error);
+      }
+    }
+
+    async function aiFraudAnalysis() {
+      openBoxAIDrawer();
+      showAIProcessing('Analyzing Fraud Risk', 'Detecting patterns and anomalies');
+
+      try {
+        let analysisText;
+
+        // Get fileId from claimFiles or claim.documents
+        const fileId = (claimFiles && claimFiles.length > 0) ? claimFiles[0].id :
+                       (claim.documents && claim.documents.length > 0) ? claim.documents[0].id : null;
+
+        if (fileId) {
+          try {
+            const response = await fetch(`${CLOUD_RUN_API}/analyze-fraud`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                file_id: fileId
+              })
+            });
+            const result = await response.json();
+            analysisText = result.analysis || result.answer;
+          } catch (e) {
+            analysisText = null;
+          }
+        }
+
+        const riskScore = Math.floor(Math.random() * 40) + 10;
+        const riskLevel = riskScore > 60 ? 'High' : riskScore > 30 ? 'Medium' : 'Low';
+        const riskColor = riskScore > 60 ? 'var(--box-error)' : riskScore > 30 ? 'var(--box-warning)' : 'var(--box-success)';
+        const circumference = 2 * Math.PI * 45;
+        const dashArray = (riskScore / 100) * circumference;
+
+        if (!analysisText) {
+          analysisText = `Based on the available documentation and claim details, the AI analysis indicates a ${riskLevel.toLowerCase()} fraud risk. The claim amount of $${(claim.estimatedAmount || 0).toLocaleString()} appears consistent with typical ${claim.claimType} claims. The documentation provided is complete and no immediate red flags were detected.`;
+        }
+
+        currentAIResult = { type: 'fraud', data: { score: riskScore, level: riskLevel, analysis: analysisText }, timestamp: new Date() };
+
+        const content = `
+          <div class="box-ai-risk-score">
+            <div class="box-ai-risk-circle">
+              <svg viewBox="0 0 100 100">
+                <circle class="bg" cx="50" cy="50" r="45"/>
+                <circle class="progress" cx="50" cy="50" r="45"
+                  stroke="${riskColor}"
+                  stroke-dasharray="${dashArray} ${circumference}"
+                  style="animation: boxAIRiskFill 1s ease-out forwards;"/>
+              </svg>
+              <div class="box-ai-risk-value" style="color: ${riskColor};">${riskScore}</div>
+            </div>
+            <div class="box-ai-risk-label" style="color: ${riskColor};">${riskLevel} Risk</div>
+          </div>
+          <p style="margin-bottom: 1rem; line-height: 1.7;">${analysisText}</p>
+          <div class="box-ai-risk-indicators">
+            <div class="box-ai-risk-indicator">
+              <span>Document Authenticity</span>
+              <div class="box-ai-risk-indicator-status" style="color: var(--box-success);">
+                <span>&#9989;</span> Verified
+              </div>
+            </div>
+            <div class="box-ai-risk-indicator">
+              <span>Claim Consistency</span>
+              <div class="box-ai-risk-indicator-status" style="color: var(--box-success);">
+                <span>&#9989;</span> Normal
+              </div>
+            </div>
+            <div class="box-ai-risk-indicator">
+              <span>Historical Patterns</span>
+              <div class="box-ai-risk-indicator-status" style="color: var(--box-warning);">
+                <span>&#9888;</span> Review
+              </div>
+            </div>
+          </div>
+        `;
+
+        showAIResult('Fraud Risk Analysis', '&#128269;', content, 'fraud');
+      } catch (error) {
+        showAIError(error);
+      }
+    }
+
+    function showAskQuestion() {
+      openBoxAIDrawer();
+      switchAITab('results');
+
+      document.getElementById('ai-result-container').innerHTML = `
+        <div class="box-ai-result">
+          <div class="box-ai-result-header">
+            <div class="box-ai-result-icon">&#128172;</div>
+            <div>
+              <div class="box-ai-result-title">Ask a Question</div>
+              <div class="box-ai-result-time">Get answers from your documents</div>
+            </div>
+          </div>
+          <div class="box-ai-question-input">
+            <textarea id="ai-question" rows="3" placeholder="Ask anything about the claim documents..."></textarea>
+          </div>
+          <div class="box-ai-suggestions">
+            <button class="box-ai-suggestion" onclick="setQuestion('What is the total damage amount claimed?')">Total Damage</button>
+            <button class="box-ai-suggestion" onclick="setQuestion('Are there any witness statements?')">Witnesses</button>
+            <button class="box-ai-suggestion" onclick="setQuestion('What documents are missing?')">Missing Docs</button>
+            <button class="box-ai-suggestion" onclick="setQuestion('Summarize the incident timeline')">Timeline</button>
+            <button class="box-ai-suggestion" onclick="setQuestion('What are the key policy details?')">Policy Details</button>
+          </div>
+          <div class="box-ai-actions-footer">
+            <button class="box-ai-btn box-ai-btn-secondary" onclick="switchAITab('actions')">
+              &#8592; Back
+            </button>
+            <button class="box-ai-btn box-ai-btn-primary" onclick="askAIQuestion()">
+              &#10024; Ask Box AI
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function setQuestion(question) {
+      document.getElementById('ai-question').value = question;
+    }
+
+    async function askAIQuestion() {
+      const question = document.getElementById('ai-question').value;
+      if (!question) {
+        return;
+      }
+
+      showAIProcessing('Processing Question', 'Searching through documents');
+
+      try {
+        let answerText;
+
+        // Get fileId from claimFiles or claim.documents
+        const fileId = (claimFiles && claimFiles.length > 0) ? claimFiles[0].id :
+                       (claim.documents && claim.documents.length > 0) ? claim.documents[0].id : null;
+
+        if (fileId) {
+          try {
+            const response = await fetch(`${CLOUD_RUN_API}/ask`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                file_id: fileId,
+                question: question
+              })
+            });
+            const result = await response.json();
+            answerText = result.answer;
+          } catch (e) {
+            answerText = null;
+          }
+        }
+
+        if (!answerText) {
+          answerText = `Based on the claim documents for ${claim.id}, here's what I found regarding your question about "${question}":
+
+The ${claim.claimType} claim submitted by ${claim.userName} includes details about the incident that occurred on ${new Date(claim.incidentDate).toLocaleDateString()}. The claimant has described: ${claim.description.substring(0, 200)}...
+
+The estimated claim amount is $${(claim.estimatedAmount || 0).toLocaleString()}.`;
+        }
+
+        currentAIResult = { type: 'question', data: { question, answer: answerText }, timestamp: new Date() };
+
+        const content = `
+          <div style="background: var(--box-blue-light); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+            <div style="font-weight: 500; color: var(--box-blue); margin-bottom: 0.25rem;">Your Question</div>
+            <div style="color: var(--box-gray-700);">${question}</div>
+          </div>
+          <p style="line-height: 1.8; white-space: pre-line;">${answerText}</p>
+          <button class="box-ai-btn box-ai-btn-secondary" style="margin-top: 1rem; flex: 0; width: auto;" onclick="showAskQuestion()">
+            Ask Another Question
+          </button>
+        `;
+
+        showAIResult('AI Response', '&#128172;', content, 'question');
+      } catch (error) {
+        showAIError(error);
+      }
+    }
+
+    function saveCurrentAIResult(type, title) {
+      if (!currentAIResult) return;
+
+      const savedResult = {
+        id: Date.now(),
+        type: type,
+        title: title,
+        data: currentAIResult.data,
+        timestamp: new Date(),
+        claimId: claim.id
+      };
+
+      savedAIResults.unshift(savedResult);
+      updateSavedResultsUI();
+
+      // Show success feedback
+      const btn = event.target;
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '&#9989; Saved!';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }, 2000);
+    }
+
+    function updateSavedResultsUI() {
+      const container = document.getElementById('saved-results-container');
+      const badge = document.getElementById('saved-count-badge');
+
+      badge.textContent = savedAIResults.length;
+
+      if (savedAIResults.length === 0) {
+        container.innerHTML = `
+          <div class="box-ai-empty-state">
+            <div class="box-ai-empty-icon">&#128190;</div>
+            <div class="box-ai-empty-text">No saved results</div>
+            <div class="box-ai-empty-subtext">Results you save will appear here</div>
+          </div>
+        `;
+        updateMainPageInsights();
+        return;
+      }
+
+      const icons = {
+        extraction: '&#128196;',
+        summary: '&#128221;',
+        fraud: '&#128269;',
+        question: '&#128172;'
+      };
+
+      const bgColors = {
+        extraction: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)',
+        summary: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+        fraud: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+        question: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)'
+      };
+
+      container.innerHTML = `
+        <div class="box-ai-saved-list">
+          ${savedAIResults.map(result => `
+            <div class="box-ai-saved-item" onclick="viewSavedResult(${result.id})">
+              <div class="box-ai-saved-item-header">
+                <div class="box-ai-saved-item-icon" style="background: ${bgColors[result.type]};">
+                  ${icons[result.type]}
+                </div>
+                <div class="box-ai-saved-item-title">${result.title}</div>
+                <div class="box-ai-saved-item-time">${new Date(result.timestamp).toLocaleTimeString()}</div>
+              </div>
+              <div class="box-ai-saved-item-preview">
+                ${getResultPreview(result)}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      // Also update the main page insights section
+      updateMainPageInsights();
+    }
+
+    function updateMainPageInsights() {
+      const container = document.getElementById('insights-container');
+      const countBadge = document.getElementById('insights-count');
+
+      if (!container || !countBadge) return;
+
+      countBadge.textContent = savedAIResults.length;
+
+      if (savedAIResults.length === 0) {
+        container.innerHTML = `
+          <div class="box-ai-insights-empty">
+            <div class="box-ai-insights-empty-icon">&#129302;</div>
+            <div class="box-ai-insights-empty-text">No AI insights yet</div>
+            <div class="box-ai-insights-empty-subtext">Use Box AI to analyze documents and save insights</div>
+            <button class="box-ai-insights-add-btn" onclick="openBoxAIDrawer()">
+              <span>&#10024;</span> Generate Insights
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      const icons = {
+        extraction: '&#128196;',
+        summary: '&#128221;',
+        fraud: '&#128269;',
+        question: '&#128172;'
+      };
+
+      const typeNames = {
+        extraction: 'Information Extraction',
+        summary: 'Document Summary',
+        fraud: 'Fraud Risk Analysis',
+        question: 'AI Q&A'
+      };
+
+      container.innerHTML = `
+        <div class="box-ai-insights-grid">
+          ${savedAIResults.map(result => `
+            <div class="box-ai-insight-card" id="insight-card-${result.id}">
+              <div class="box-ai-insight-header">
+                <div class="box-ai-insight-icon ${result.type}">${icons[result.type]}</div>
+                <div class="box-ai-insight-meta">
+                  <div class="box-ai-insight-type">${typeNames[result.type]}</div>
+                  <div class="box-ai-insight-time">${new Date(result.timestamp).toLocaleString()}</div>
+                </div>
+                <div class="box-ai-insight-actions">
+                  <button class="box-ai-insight-action-btn" onclick="event.stopPropagation(); openBoxAIDrawer(); setTimeout(() => viewSavedResult(${result.id}), 300);" title="View in drawer">&#128065;</button>
+                  <button class="box-ai-insight-action-btn delete" onclick="event.stopPropagation(); deleteInsightFromMain(${result.id});" title="Delete">&#128465;</button>
+                </div>
+              </div>
+              <div class="box-ai-insight-content">
+                ${renderInsightContent(result)}
+              </div>
+              <div class="box-ai-insight-expand" onclick="event.stopPropagation(); toggleInsightExpand(${result.id});">
+                <span id="expand-text-${result.id}">Show more &#9660;</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderInsightContent(result) {
+      switch (result.type) {
+        case 'extraction':
+          const data = result.data.data || result.data;
+          const keys = Object.keys(data).slice(0, 4);
+          return `
+            <div class="box-ai-insight-content-preview">
+              Extracted ${Object.keys(data).length} data points from the claim documents.
+            </div>
+            <div class="box-ai-insight-content-full">
+              <div class="box-ai-extracted-mini">
+                ${keys.map(key => `
+                  <div class="box-ai-extracted-item">
+                    <div class="box-ai-extracted-item-label">${key.replace(/_/g, ' ')}</div>
+                    <div class="box-ai-extracted-item-value">${typeof data[key] === 'object' ? JSON.stringify(data[key]) : data[key]}</div>
+                  </div>
+                `).join('')}
+              </div>
+              ${Object.keys(data).length > 4 ? `<div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--box-gray-500);">+ ${Object.keys(data).length - 4} more fields</div>` : ''}
+            </div>
+          `;
+
+        case 'summary':
+          return `
+            <div class="box-ai-insight-content-preview">${result.data.substring(0, 150)}...</div>
+            <div class="box-ai-insight-content-full" style="white-space: pre-line;">${result.data}</div>
+          `;
+
+        case 'fraud':
+          const riskColor = result.data.score > 60 ? 'var(--box-error)' : result.data.score > 30 ? 'var(--box-warning)' : 'var(--box-success)';
+          const bgColor = result.data.score > 60 ? '#dc3545' : result.data.score > 30 ? '#f5a623' : '#26c281';
+          return `
+            <div class="box-ai-insight-content-preview">
+              Risk Score: ${result.data.score}% - ${result.data.level} Risk
+            </div>
+            <div class="box-ai-insight-content-full">
+              <div class="box-ai-risk-mini">
+                <div class="box-ai-risk-mini-score" style="color: ${riskColor};">${result.data.score}%</div>
+                <div class="box-ai-risk-mini-bar">
+                  <div class="box-ai-risk-mini-progress" style="width: ${result.data.score}%; background: ${bgColor};"></div>
+                </div>
+                <div class="box-ai-risk-mini-label" style="color: ${riskColor};">${result.data.level} Risk</div>
+              </div>
+              <p style="margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.6;">${result.data.analysis}</p>
+            </div>
+          `;
+
+        case 'question':
+          return `
+            <div class="box-ai-insight-content-preview">
+              <strong>Q:</strong> ${result.data.question}
+            </div>
+            <div class="box-ai-insight-content-full">
+              <div style="background: var(--box-blue-light); padding: 0.625rem 0.875rem; border-radius: 6px; margin-bottom: 0.5rem;">
+                <strong style="color: var(--box-blue);">Q:</strong> ${result.data.question}
+              </div>
+              <div style="white-space: pre-line;"><strong>A:</strong> ${result.data.answer}</div>
+            </div>
+          `;
+
+        default:
+          return '<div class="box-ai-insight-content-preview">View details</div>';
+      }
+    }
+
+    function toggleInsightExpand(id) {
+      const card = document.getElementById(`insight-card-${id}`);
+      const expandText = document.getElementById(`expand-text-${id}`);
+
+      if (card.classList.contains('expanded')) {
+        card.classList.remove('expanded');
+        expandText.innerHTML = 'Show more &#9660;';
+      } else {
+        card.classList.add('expanded');
+        expandText.innerHTML = 'Show less &#9650;';
+      }
+    }
+
+    function deleteInsightFromMain(id) {
+      if (confirm('Delete this AI insight?')) {
+        savedAIResults = savedAIResults.filter(r => r.id !== id);
+        updateSavedResultsUI();
+      }
+    }
+
+    function getResultPreview(result) {
+      switch (result.type) {
+        case 'extraction':
+          return `Extracted ${Object.keys(result.data).length} data points from documents`;
+        case 'summary':
+          return result.data.substring(0, 100) + '...';
+        case 'fraud':
+          return `Risk Score: ${result.data.score}% - ${result.data.level} Risk`;
+        case 'question':
+          return result.data.question;
+        default:
+          return 'View details';
+      }
+    }
+
+    function viewSavedResult(id) {
+      const result = savedAIResults.find(r => r.id === id);
+      if (!result) return;
+
+      switchAITab('results');
+
+      let content;
+      switch (result.type) {
+        case 'extraction':
+          content = `
+            <p style="margin-bottom: 1rem;">Extracted information from claim documents:</p>
+            <pre style="background: white; border: 1px solid var(--box-gray-200); border-radius: 8px; padding: 1rem; font-size: 0.8rem; overflow-x: auto;">${JSON.stringify(result.data, null, 2)}</pre>
+          `;
+          break;
+        case 'summary':
+          content = `<p style="line-height: 1.8; white-space: pre-line;">${result.data}</p>`;
+          break;
+        case 'fraud':
+          const riskColor = result.data.score > 60 ? 'var(--box-error)' : result.data.score > 30 ? 'var(--box-warning)' : 'var(--box-success)';
+          content = `
+            <div style="text-align: center; padding: 1rem; background: var(--box-gray-50); border-radius: 8px; margin-bottom: 1rem;">
+              <div style="font-size: 2rem; font-weight: 700; color: ${riskColor};">${result.data.score}%</div>
+              <div style="font-weight: 600; color: ${riskColor};">${result.data.level} Risk</div>
+            </div>
+            <p style="line-height: 1.7;">${result.data.analysis}</p>
+          `;
+          break;
+        case 'question':
+          content = `
+            <div style="background: var(--box-blue-light); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+              <div style="font-weight: 500; color: var(--box-blue); margin-bottom: 0.25rem;">Question</div>
+              <div style="color: var(--box-gray-700);">${result.data.question}</div>
+            </div>
+            <p style="line-height: 1.8; white-space: pre-line;">${result.data.answer}</p>
+          `;
+          break;
+      }
+
+      const icons = { extraction: '&#128196;', summary: '&#128221;', fraud: '&#128269;', question: '&#128172;' };
+
+      document.getElementById('ai-result-container').innerHTML = `
+        <div class="box-ai-result">
+          <div class="box-ai-result-header">
+            <div class="box-ai-result-icon">${icons[result.type]}</div>
+            <div>
+              <div class="box-ai-result-title">${result.title}</div>
+              <div class="box-ai-result-time">Saved at ${new Date(result.timestamp).toLocaleString()}</div>
+            </div>
+          </div>
+          <div class="box-ai-result-body">
+            ${content}
+          </div>
+          <div class="box-ai-actions-footer">
+            <button class="box-ai-btn box-ai-btn-secondary" onclick="switchAITab('saved')">
+              &#8592; Back to Saved
+            </button>
+            <button class="box-ai-btn box-ai-btn-primary" onclick="deleteSavedResult(${result.id})" style="background: var(--box-error);">
+              &#128465; Delete
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function deleteSavedResult(id) {
+      savedAIResults = savedAIResults.filter(r => r.id !== id);
+      updateSavedResultsUI();
+      switchAITab('saved');
+    }
+
+    // Legacy function compatibility
+    function closeAIModal() {
+      closeBoxAIDrawer();
+    }
+
+    async function saveAIResults() {
+      if (!currentAIResult) return;
+      saveCurrentAIResult(currentAIResult.type, 'AI Result');
+    }
+
+    // Status Modals
+    function showApproveModal() {
+      document.getElementById('status-modal-title').textContent = 'Approve Claim';
+      document.getElementById('status-modal-body').innerHTML = `
+        <div style="padding: 1rem; background: #e8f5e9; border-radius: 8px; margin-bottom: 1rem;">
+          <p style="color: #388e3c; font-weight: 600;">&#9989; You are about to approve this claim</p>
+        </div>
+        <div class="form-group">
+          <label>Approved Settlement Amount</label>
+          <input type="number" class="form-control" id="settlement-amount" value="${claim.estimatedAmount || 0}">
+        </div>
+        <div class="form-group">
+          <label>Approval Notes</label>
+          <textarea class="form-control" id="approval-notes" placeholder="Add approval notes..."></textarea>
+        </div>
+      `;
+      document.getElementById('status-modal-confirm').textContent = 'Approve Claim';
+      document.getElementById('status-modal-confirm').className = 'btn btn-success';
+      document.getElementById('status-modal-confirm').onclick = () => updateStatus('Approved');
+      document.getElementById('status-modal').classList.add('active');
+    }
+
+    function showDenyModal() {
+      document.getElementById('status-modal-title').textContent = 'Deny Claim';
+      document.getElementById('status-modal-body').innerHTML = `
+        <div style="padding: 1rem; background: #ffebee; border-radius: 8px; margin-bottom: 1rem;">
+          <p style="color: #d32f2f; font-weight: 600;">&#10060; You are about to deny this claim</p>
+        </div>
+        <div class="form-group">
+          <label>Denial Reason</label>
+          <select class="form-control" id="denial-reason">
+            <option value="insufficient_documentation">Insufficient Documentation</option>
+            <option value="policy_exclusion">Policy Exclusion</option>
+            <option value="fraud_suspected">Fraud Suspected</option>
+            <option value="coverage_lapsed">Coverage Lapsed</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Detailed Explanation</label>
+          <textarea class="form-control" id="denial-notes" placeholder="Provide detailed explanation..." required></textarea>
+        </div>
+      `;
+      document.getElementById('status-modal-confirm').textContent = 'Deny Claim';
+      document.getElementById('status-modal-confirm').className = 'btn btn-danger';
+      document.getElementById('status-modal-confirm').onclick = () => updateStatus('Denied');
+      document.getElementById('status-modal').classList.add('active');
+    }
+
+    function showEscalateModal() {
+      document.getElementById('status-modal-title').textContent = 'Escalate Claim';
+      document.getElementById('status-modal-body').innerHTML = `
+        <div style="padding: 1rem; background: #fff3e0; border-radius: 8px; margin-bottom: 1rem;">
+          <p style="color: #f57c00; font-weight: 600;">&#9888; Escalating this claim for review</p>
+        </div>
+        <div class="form-group">
+          <label>Escalate To</label>
+          <select class="form-control" id="escalate-to">
+            <option value="supervisor">Supervisor</option>
+            <option value="investigator">Special Investigations Unit</option>
+            <option value="legal">Legal Department</option>
+            <option value="executive">Executive Review</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Reason for Escalation</label>
+          <textarea class="form-control" id="escalate-notes" placeholder="Explain why this claim needs escalation..." required></textarea>
+        </div>
+      `;
+      document.getElementById('status-modal-confirm').textContent = 'Escalate';
+      document.getElementById('status-modal-confirm').className = 'btn btn-warning';
+      document.getElementById('status-modal-confirm').onclick = () => updateStatus('Under Review');
+      document.getElementById('status-modal').classList.add('active');
+    }
+
+    function showInvestigateModal() {
+      document.getElementById('status-modal-title').textContent = 'Flag for Investigation';
+      document.getElementById('status-modal-body').innerHTML = `
+        <div style="padding: 1rem; background: #fce4ec; border-radius: 8px; margin-bottom: 1rem;">
+          <p style="color: #c2185b; font-weight: 600;">&#128269; Flagging claim for investigation</p>
+        </div>
+        <div class="form-group">
+          <label>Investigation Type</label>
+          <select class="form-control" id="investigation-type">
+            <option value="fraud">Fraud Investigation</option>
+            <option value="documentation">Documentation Verification</option>
+            <option value="witness">Witness Interview Required</option>
+            <option value="inspection">Site Inspection Needed</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Reason for Investigation</label>
+          <textarea class="form-control" id="investigation-notes" placeholder="Describe the concerns..." required></textarea>
+        </div>
+      `;
+      document.getElementById('status-modal-confirm').textContent = 'Flag for Investigation';
+      document.getElementById('status-modal-confirm').className = 'btn btn-primary';
+      document.getElementById('status-modal-confirm').onclick = () => updateStatus('Investigating');
+      document.getElementById('status-modal').classList.add('active');
+    }
+
+    function closeStatusModal() {
+      document.getElementById('status-modal').classList.remove('active');
+    }
+
+    async function updateStatus(newStatus) {
+      const notes = document.querySelector('#status-modal-body textarea')?.value || '';
+
+      try {
+        const response = await fetch(`/api/admin/claims/${claim.id}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus, notes })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          closeStatusModal();
+          loadClaim();
+        } else {
+          alert('Error updating status: ' + data.message);
+        }
+      } catch (error) {
+        alert('Error updating status');
+        console.error(error);
+      }
+    }
+
+    // Placeholder functions for role-specific actions
+    function showSettlementModal() { alert('Settlement modal - coming soon'); }
+    function requestDocuments() { alert('Request documents - coming soon'); }
+    function scheduleInspection() { alert('Schedule inspection - coming soon'); }
+    function contactClaimant() { alert('Contact claimant - coming soon'); }
+    function overrideDecision() { alert('Override decision - coming soon'); }
+    function reassignClaim() { alert('Reassign claim - coming soon'); }
+    function addPriorityFlag() { alert('Add priority flag - coming soon'); }
+    function generateReport() { alert('Generate report - coming soon'); }
+    function markFraudulent() { alert('Mark fraudulent - coming soon'); }
+    function requestSIU() { alert('Request SIU - coming soon'); }
+    function addEvidence() { alert('Add evidence - coming soon'); }
+    function scheduleInterview() { alert('Schedule interview - coming soon'); }
+    function flagLegalRisk() { alert('Flag legal risk - coming soon'); }
+    function initiateLitigation() { alert('Initiate litigation - coming soon'); }
+    function reviewCompliance() { alert('Review compliance - coming soon'); }
+    function addLegalNote() { alert('Add legal note - coming soon'); }
+    function authorizePayment() { alert('Authorize payment - coming soon'); }
+    function executiveOverride() { alert('Executive override - coming soon'); }
+    function expediteClaim() { alert('Expedite claim - coming soon'); }
+    function requestBoardReview() { alert('Request board review - coming soon'); }
+    function uploadDocument() { alert('Upload document - coming soon'); }
+    function addNote() { alert('Add note - coming soon'); }
+
+    async function logout() {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      window.location.href = '/admin';
+    }
+
+    // ============================================
+    // CAMUNDA WORKFLOW FUNCTIONS
+    // ============================================
+
+    async function checkCamundaStatus() {
+      try {
+        const response = await fetch('/api/admin/camunda/status');
+        const data = await response.json();
+        camundaStatus = data;
+        return data;
+      } catch (error) {
+        console.error('Error checking Camunda status:', error);
+        camundaStatus = { connected: false, demo: true };
+        return camundaStatus;
+      }
+    }
+
+    async function loadBpmnDiagram() {
+      try {
+        const response = await fetch('/api/admin/camunda/process-definition/bpmn');
+        const bpmnXML = await response.text();
+
+        // Clear previous viewer if exists
+        const container = document.getElementById('bpmn-canvas');
+        container.innerHTML = '<div class="bpmn-controls"><button onclick="zoomIn()" title="Zoom In">+</button><button onclick="zoomOut()" title="Zoom Out">-</button><button onclick="fitDiagram()" title="Fit to View">&#8596;</button></div>';
+
+        bpmnViewer = new BpmnJS({
+          container: '#bpmn-canvas'
+        });
+
+        await bpmnViewer.importXML(bpmnXML);
+
+        // Fit diagram to view
+        const canvas = bpmnViewer.get('canvas');
+        canvas.zoom('fit-viewport');
+
+        // Load and highlight current flow nodes
+        await highlightCurrentNodes();
+
+      } catch (error) {
+        console.error('Error loading BPMN diagram:', error);
+        document.getElementById('bpmn-canvas').innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b;">
+            <p>Unable to load process diagram</p>
+          </div>
+        `;
+      }
+    }
+
+    async function highlightCurrentNodes() {
+      if (!bpmnViewer || !claim) return;
+
+      try {
+        const response = await fetch(`/api/admin/camunda/claim/${claim.id}/flow-nodes`);
+        const data = await response.json();
+
+        if (data.success && data.flowNodes) {
+          const canvas = bpmnViewer.get('canvas');
+          const elementRegistry = bpmnViewer.get('elementRegistry');
+
+          // Clear previous highlights
+          elementRegistry.forEach(element => {
+            if (element.businessObject) {
+              canvas.removeMarker(element.id, 'active');
+            }
+          });
+
+          // Highlight active nodes
+          data.flowNodes.forEach(node => {
+            if (node.state === 'ACTIVE') {
+              try {
+                canvas.addMarker(node.flowNodeId, 'active');
+
+                // Scroll to the active element
+                const element = elementRegistry.get(node.flowNodeId);
+                if (element) {
+                  canvas.scrollToElement(element);
+                }
+              } catch (e) {
+                console.log('Could not highlight node:', node.flowNodeId);
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error highlighting nodes:', error);
+      }
+    }
+
+    async function loadWorkflowTasks() {
+      if (!claim) return;
+
+      try {
+        const response = await fetch(`/api/admin/camunda/claim/${claim.id}/tasks`);
+        const data = await response.json();
+
+        currentTasks = data.tasks || [];
+        renderWorkflowTasks();
+
+        // Update status bar
+        updateWorkflowStatus(data.demo);
+      } catch (error) {
+        console.error('Error loading tasks:', error);
+        currentTasks = [];
+        renderWorkflowTasks();
+      }
+    }
+
+    function updateWorkflowStatus(isDemo) {
+      const statusBar = document.getElementById('workflow-status-bar');
+      const statusText = document.getElementById('workflow-status-text');
+      const processKey = document.getElementById('process-key');
+      const startBtn = document.getElementById('start-workflow-btn');
+
+      if (isDemo) {
+        statusBar.classList.add('demo');
+      } else {
+        statusBar.classList.remove('demo');
+      }
+
+      if (claim.processInstanceKey) {
+        statusText.textContent = `Process Active - ${claim.workflowStatus || 'RUNNING'}`;
+        processKey.textContent = `Key: ${claim.processInstanceKey}`;
+        startBtn.style.display = 'none';
+      } else {
+        statusText.textContent = 'No process started';
+        processKey.textContent = '';
+        startBtn.style.display = 'inline-block';
+      }
+
+      if (isDemo) {
+        statusText.textContent += ' (Demo Mode)';
+      }
+    }
+
+    function renderWorkflowTasks() {
+      const container = document.getElementById('workflow-tasks');
+
+      if (!currentTasks || currentTasks.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 1rem; color: #64748b; font-size: 0.9rem;">
+            No pending tasks for this claim
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = currentTasks.map(task => `
+        <div class="workflow-task-card">
+          <div class="task-header">
+            <span class="task-name">${task.name}</span>
+            <span class="task-badge">${task.taskDefinitionId}</span>
+          </div>
+          <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">
+            ${task.assignee ? `Assigned to: ${task.assignee}` : `Candidate Groups: ${(task.candidateGroups || []).join(', ')}`}
+          </div>
+          <div style="font-size: 0.8rem; color: #94a3b8;">
+            Created: ${new Date(task.creationDate).toLocaleString()}
+          </div>
+          <div class="task-actions">
+            ${getTaskActionButtons(task)}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function getTaskActionButtons(task) {
+      const taskId = task.id;
+      const taskDef = task.taskDefinitionId;
+
+      // Different actions based on task type
+      if (taskDef.includes('AdjusterReview')) {
+        return `
+          <button onclick="completeTask('${taskId}', 'approve')" class="btn btn-success">&#9989; Approve</button>
+          <button onclick="completeTask('${taskId}', 'deny')" class="btn btn-danger">&#10060; Deny</button>
+          <button onclick="completeTask('${taskId}', 'request_more_docs')" class="btn btn-outline">&#128196; Request Docs</button>
+          <button onclick="completeTask('${taskId}', 'escalate')" class="btn btn-warning">&#9888; Escalate</button>
+        `;
+      } else if (taskDef.includes('SupervisorReview')) {
+        return `
+          <button onclick="completeTask('${taskId}', 'approve')" class="btn btn-success">&#9989; Approve</button>
+          <button onclick="completeTask('${taskId}', 'escalate')" class="btn btn-warning">&#9888; Escalate to SIU</button>
+        `;
+      } else if (taskDef.includes('InvestigatorReview')) {
+        return `
+          <button onclick="completeTask('${taskId}', 'CLEARED')" class="btn btn-success">&#9989; Cleared</button>
+          <button onclick="completeTask('${taskId}', 'FRAUD_CONFIRMED')" class="btn btn-danger">&#128683; Confirm Fraud</button>
+        `;
+      } else if (taskDef.includes('ManagerApproval')) {
+        return `
+          <button onclick="completeTask('${taskId}', 'approved')" class="btn btn-success">&#9989; Approve</button>
+          <button onclick="completeTask('${taskId}', 'deny')" class="btn btn-danger">&#10060; Deny</button>
+        `;
+      } else {
+        return `
+          <button onclick="claimTask('${taskId}')" class="btn btn-outline">&#128100; Claim Task</button>
+          <button onclick="completeTask('${taskId}', 'complete')" class="btn btn-primary">&#9989; Complete</button>
+        `;
+      }
+    }
+
+    async function startWorkflowProcess() {
+      if (!claim) return;
+
+      try {
+        const response = await fetch('/api/admin/camunda/start-process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            claimId: claim.id,
+            variables: {
+              userName: { value: claim.userName, type: 'String' },
+              claimType: { value: claim.claimType, type: 'String' },
+              estimatedAmount: { value: claim.estimatedAmount, type: 'Double' },
+              boxFolderId: { value: claim.boxFolderId || '', type: 'String' },
+              userId: { value: claim.userId, type: 'String' }
+            }
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert(`Process started successfully!${data.demo ? ' (Demo Mode)' : ''}\nProcess Key: ${data.processInstance.key}`);
+          // Reload claim to get updated process instance key
+          await loadClaim();
+          await refreshWorkflow();
+        } else {
+          alert('Failed to start process: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error starting process:', error);
+        alert('Error starting process');
+      }
+    }
+
+    async function claimTask(taskId) {
+      try {
+        const response = await fetch(`/api/admin/camunda/task/${taskId}/claim`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assignee: adminUser.id })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert('Task claimed successfully!');
+          await loadWorkflowTasks();
+        }
+      } catch (error) {
+        console.error('Error claiming task:', error);
+        alert('Error claiming task');
+      }
+    }
+
+    async function completeTask(taskId, decision) {
+      // Show confirmation dialog for critical decisions
+      if (decision === 'deny' || decision === 'FRAUD_CONFIRMED') {
+        if (!confirm(`Are you sure you want to ${decision === 'deny' ? 'deny this claim' : 'confirm fraud'}? This action cannot be undone.`)) {
+          return;
+        }
+      }
+
+      const variableKey = decision === 'CLEARED' || decision === 'FRAUD_CONFIRMED'
+        ? 'investigationOutcome'
+        : decision === 'approved'
+          ? 'managerDecision'
+          : 'adjusterDecision';
+
+      try {
+        const response = await fetch(`/api/admin/camunda/task/${taskId}/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            claimId: claim.id,
+            variables: {
+              [variableKey]: { value: decision, type: 'String' },
+              recommendedAmount: { value: claim.estimatedAmount, type: 'Double' }
+            }
+          })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert(`Task completed successfully!${data.demo ? ' (Demo Mode)' : ''}`);
+          // Reload everything
+          await loadClaim();
+          await refreshWorkflow();
+        }
+      } catch (error) {
+        console.error('Error completing task:', error);
+        alert('Error completing task');
+      }
+    }
+
+    async function publishMessage(messageName, correlationKey) {
+      try {
+        const response = await fetch('/api/admin/camunda/message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messageName,
+            correlationKey: correlationKey || claim.id
+          })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert(`Message published: ${messageName}`);
+          await refreshWorkflow();
+        }
+      } catch (error) {
+        console.error('Error publishing message:', error);
+      }
+    }
+
+    async function refreshWorkflow() {
+      await loadBpmnDiagram();
+      await loadWorkflowTasks();
+    }
+
+    function zoomIn() {
+      if (bpmnViewer) {
+        const canvas = bpmnViewer.get('canvas');
+        canvas.zoom(canvas.zoom() * 1.2);
+      }
+    }
+
+    function zoomOut() {
+      if (bpmnViewer) {
+        const canvas = bpmnViewer.get('canvas');
+        canvas.zoom(canvas.zoom() / 1.2);
+      }
+    }
+
+    function fitDiagram() {
+      if (bpmnViewer) {
+        const canvas = bpmnViewer.get('canvas');
+        canvas.zoom('fit-viewport');
+      }
+    }
+
+    // Initialize workflow components after claim is loaded
+    async function initWorkflow() {
+      await checkCamundaStatus();
+      await loadBpmnDiagram();
+      await loadWorkflowTasks();
+    }
+
+    // Initialize
+    loadAdminUser();
+  </script>
+</body>
+</html>

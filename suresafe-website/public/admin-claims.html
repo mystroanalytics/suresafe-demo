@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claims Management - SureSafe Admin</title>
+  <link rel="icon" href="/images/icon.png" type="image/png">
+  <link rel="stylesheet" href="/admin-styles.css">
+</head>
+<body>
+  <div class="admin-container">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <img src="/images/sure-safe-logo-small.png" alt="SureSafe">
+        <div>
+          <h2>SureSafe Admin</h2>
+          <small>Back Office Portal</small>
+        </div>
+      </div>
+
+      <div class="sidebar-user">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <div class="user-name" id="user-name">Loading...</div>
+        <div class="user-role">
+          <span class="role-badge" id="user-role-badge">Admin</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">Main</div>
+        <a href="/admin/dashboard" class="nav-item">
+          <span class="icon">&#128200;</span>
+          Dashboard
+        </a>
+        <a href="/admin/claims" class="nav-item active">
+          <span class="icon">&#128203;</span>
+          Claims
+          <span class="badge" id="pending-claims-badge">12</span>
+        </a>
+
+        <div class="nav-section">Workflow</div>
+        <a href="/admin/claims?status=submitted" class="nav-item">
+          <span class="icon">&#128229;</span>
+          New Submissions
+        </a>
+        <a href="/admin/claims?status=under-review" class="nav-item">
+          <span class="icon">&#128270;</span>
+          Under Review
+        </a>
+        <a href="/admin/claims?status=investigating" class="nav-item">
+          <span class="icon">&#128269;</span>
+          Investigations
+        </a>
+        <a href="/admin/claims?status=approved" class="nav-item">
+          <span class="icon">&#9989;</span>
+          Approved
+        </a>
+
+        <div class="nav-section">Tools</div>
+        <a href="#" class="nav-item" onclick="openBulkActions()">
+          <span class="icon">&#128736;</span>
+          Bulk Actions
+        </a>
+        <a href="#" class="nav-item" onclick="exportClaims()">
+          <span class="icon">&#128229;</span>
+          Export Data
+        </a>
+
+        <div class="nav-section">Account</div>
+        <a href="#" class="nav-item" onclick="logout()">
+          <span class="icon">&#128682;</span>
+          Logout
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+      <header class="admin-header">
+        <div class="header-left">
+          <h1 class="header-title">Claims Management</h1>
+          <div class="breadcrumb">
+            <a href="/admin/dashboard">Dashboard</a>
+            <span>/</span>
+            <span>Claims</span>
+          </div>
+        </div>
+        <div class="header-right">
+          <div class="header-search">
+            <span>&#128269;</span>
+            <input type="text" placeholder="Search claims..." id="global-search" onkeyup="handleSearch(event)">
+          </div>
+          <button class="header-icon-btn">
+            &#128276;
+            <span class="notification-dot"></span>
+          </button>
+        </div>
+      </header>
+
+      <div class="admin-content">
+        <!-- Stats Summary -->
+        <div class="stats-grid" style="margin-bottom: 1.5rem;">
+          <div class="stat-card">
+            <div class="stat-icon blue">&#128203;</div>
+            <div class="stat-content">
+              <h3 id="stat-total">0</h3>
+              <p>Total Claims</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orange">&#9203;</div>
+            <div class="stat-content">
+              <h3 id="stat-pending">0</h3>
+              <p>Pending Review</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green">&#9989;</div>
+            <div class="stat-content">
+              <h3 id="stat-approved">0</h3>
+              <p>Approved</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon purple">&#128176;</div>
+            <div class="stat-content">
+              <h3 id="stat-value">$0</h3>
+              <p>Total Value</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Claims Table -->
+        <div class="table-card">
+          <div class="table-header">
+            <h3>All Claims</h3>
+            <div class="table-filters">
+              <select class="filter-select" id="filter-status" onchange="applyFilters()">
+                <option value="">All Statuses</option>
+                <option value="Submitted">Submitted</option>
+                <option value="Under Review">Under Review</option>
+                <option value="Investigating">Investigating</option>
+                <option value="Approved">Approved</option>
+                <option value="Denied">Denied</option>
+                <option value="Processing">Processing</option>
+                <option value="Completed">Completed</option>
+              </select>
+              <select class="filter-select" id="filter-type" onchange="applyFilters()">
+                <option value="">All Types</option>
+                <option value="Auto">Auto</option>
+                <option value="Property">Property</option>
+                <option value="Health">Health</option>
+                <option value="Life">Life</option>
+              </select>
+              <select class="filter-select" id="filter-priority" onchange="applyFilters()">
+                <option value="">All Priorities</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+              <input type="date" class="filter-input" id="filter-date" onchange="applyFilters()" style="min-width: 130px;">
+            </div>
+          </div>
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th>
+                <th onclick="sortBy('id')" style="cursor: pointer;">Claim ID &#8597;</th>
+                <th onclick="sortBy('userName')" style="cursor: pointer;">Claimant &#8597;</th>
+                <th onclick="sortBy('claimType')" style="cursor: pointer;">Type &#8597;</th>
+                <th onclick="sortBy('estimatedAmount')" style="cursor: pointer;">Amount &#8597;</th>
+                <th>Priority</th>
+                <th onclick="sortBy('status')" style="cursor: pointer;">Status &#8597;</th>
+                <th onclick="sortBy('createdAt')" style="cursor: pointer;">Date &#8597;</th>
+                <th>Assigned To</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="claims-table">
+              <tr>
+                <td colspan="10" style="text-align: center; padding: 3rem;">
+                  <div class="loading-spinner" style="border-color: #ddd; border-top-color: #4a90d9;"></div>
+                  <p style="margin-top: 1rem; color: #666;">Loading claims...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="table-pagination">
+            <div class="pagination-info" id="pagination-info">
+              Showing 0 of 0 claims
+            </div>
+            <div class="pagination-buttons">
+              <button class="pagination-btn" id="btn-prev" onclick="prevPage()" disabled>Previous</button>
+              <button class="pagination-btn" id="btn-next" onclick="nextPage()" disabled>Next</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Action Modal -->
+  <div class="modal-overlay" id="action-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-title">Update Claim Status</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body">
+        <!-- Dynamic content -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="modal-confirm" onclick="confirmAction()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let adminUser = null;
+    let allClaims = [];
+    let filteredClaims = [];
+    let currentPage = 1;
+    const pageSize = 10;
+    let sortField = 'createdAt';
+    let sortDir = 'desc';
+    let selectedClaims = [];
+    let currentAction = null;
+
+    const adjusters = ['Sarah Mitchell', 'John Davis', 'Mike Rodriguez', 'Lisa Kim', 'Tom Wilson', 'Amy Chen'];
+
+    // Load admin user
+    async function loadAdminUser() {
+      try {
+        const response = await fetch('/api/admin/user');
+        const data = await response.json();
+        if (!data.success) {
+          window.location.href = '/admin';
+          return;
+        }
+        adminUser = data.user;
+        updateUserDisplay();
+        loadClaims();
+      } catch (error) {
+        window.location.href = '/admin';
+      }
+    }
+
+    function updateUserDisplay() {
+      document.getElementById('user-name').textContent = adminUser.name;
+      document.getElementById('user-avatar').textContent = adminUser.name.charAt(0).toUpperCase();
+      document.getElementById('user-role-badge').textContent = adminUser.role.charAt(0).toUpperCase() + adminUser.role.slice(1);
+    }
+
+    async function loadClaims() {
+      try {
+        const response = await fetch('/api/admin/claims');
+        const data = await response.json();
+
+        if (data.success) {
+          // Enhance claims with mock data
+          allClaims = data.claims.map(claim => ({
+            ...claim,
+            priority: ['high', 'medium', 'low'][Math.floor(Math.random() * 3)],
+            assignedTo: adjusters[Math.floor(Math.random() * adjusters.length)]
+          }));
+          applyFilters();
+          updateStats();
+        }
+      } catch (error) {
+        console.error('Error loading claims:', error);
+      }
+    }
+
+    function updateStats() {
+      const total = allClaims.length;
+      const pending = allClaims.filter(c => c.status === 'Submitted' || c.status === 'Under Review').length;
+      const approved = allClaims.filter(c => c.status === 'Approved').length;
+      const totalValue = allClaims.reduce((sum, c) => sum + (c.estimatedAmount || 0), 0);
+
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-pending').textContent = pending;
+      document.getElementById('stat-approved').textContent = approved;
+      document.getElementById('stat-value').textContent = '$' + totalValue.toLocaleString();
+      document.getElementById('pending-claims-badge').textContent = pending;
+    }
+
+    function applyFilters() {
+      const statusFilter = document.getElementById('filter-status').value;
+      const typeFilter = document.getElementById('filter-type').value;
+      const priorityFilter = document.getElementById('filter-priority').value;
+      const dateFilter = document.getElementById('filter-date').value;
+      const searchQuery = document.getElementById('global-search').value.toLowerCase();
+
+      // Check URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlStatus = urlParams.get('status');
+      if (urlStatus && !statusFilter) {
+        document.getElementById('filter-status').value = urlStatus.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+      }
+
+      filteredClaims = allClaims.filter(claim => {
+        if (statusFilter && claim.status !== statusFilter) return false;
+        if (typeFilter && !claim.claimType.includes(typeFilter)) return false;
+        if (priorityFilter && claim.priority !== priorityFilter) return false;
+        if (dateFilter && !claim.createdAt.startsWith(dateFilter)) return false;
+        if (searchQuery) {
+          const searchStr = `${claim.id} ${claim.userName} ${claim.claimType} ${claim.description}`.toLowerCase();
+          if (!searchStr.includes(searchQuery)) return false;
+        }
+        return true;
+      });
+
+      sortClaims();
+      currentPage = 1;
+      renderClaims();
+    }
+
+    function sortClaims() {
+      filteredClaims.sort((a, b) => {
+        let aVal = a[sortField];
+        let bVal = b[sortField];
+
+        if (sortField === 'estimatedAmount') {
+          aVal = parseFloat(aVal) || 0;
+          bVal = parseFloat(bVal) || 0;
+        } else if (sortField === 'createdAt') {
+          aVal = new Date(aVal);
+          bVal = new Date(bVal);
+        } else {
+          aVal = String(aVal).toLowerCase();
+          bVal = String(bVal).toLowerCase();
+        }
+
+        if (sortDir === 'asc') {
+          return aVal > bVal ? 1 : -1;
+        } else {
+          return aVal < bVal ? 1 : -1;
+        }
+      });
+    }
+
+    function sortBy(field) {
+      if (sortField === field) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortField = field;
+        sortDir = 'asc';
+      }
+      sortClaims();
+      renderClaims();
+    }
+
+    function renderClaims() {
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const pageClaims = filteredClaims.slice(startIndex, endIndex);
+
+      const tableBody = document.getElementById('claims-table');
+
+      if (pageClaims.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="10" style="text-align: center; padding: 3rem; color: #666;">
+              <p style="font-size: 1.1rem;">No claims found</p>
+              <p style="font-size: 0.9rem; margin-top: 0.5rem;">Try adjusting your filters</p>
+            </td>
+          </tr>
+        `;
+      } else {
+        tableBody.innerHTML = pageClaims.map(claim => `
+          <tr>
+            <td><input type="checkbox" data-id="${claim.id}" onchange="toggleSelect('${claim.id}')"></td>
+            <td><a class="claim-id" onclick="viewClaim('${claim.id}')">${claim.id}</a></td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: #e0e0e0; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600;">
+                  ${claim.userName.split(' ').map(n => n[0]).join('')}
+                </div>
+                ${claim.userName}
+              </div>
+            </td>
+            <td>${claim.claimType}</td>
+            <td><strong>$${(claim.estimatedAmount || 0).toLocaleString()}</strong></td>
+            <td><span class="priority-badge ${claim.priority}">${claim.priority.toUpperCase()}</span></td>
+            <td><span class="status-badge ${claim.status.toLowerCase().replace(' ', '-')}">${claim.status}</span></td>
+            <td>${new Date(claim.createdAt).toLocaleDateString()}</td>
+            <td style="font-size: 0.85rem;">${claim.assignedTo}</td>
+            <td>
+              <div class="table-actions">
+                <button class="action-btn" onclick="viewClaim('${claim.id}')" title="View">&#128065;</button>
+                <button class="action-btn" onclick="showStatusModal('${claim.id}')" title="Update Status">&#9998;</button>
+                <button class="action-btn" onclick="showAssignModal('${claim.id}')" title="Assign">&#128101;</button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      }
+
+      // Update pagination
+      const totalPages = Math.ceil(filteredClaims.length / pageSize);
+      document.getElementById('pagination-info').textContent =
+        `Showing ${startIndex + 1}-${Math.min(endIndex, filteredClaims.length)} of ${filteredClaims.length} claims`;
+      document.getElementById('btn-prev').disabled = currentPage === 1;
+      document.getElementById('btn-next').disabled = currentPage >= totalPages;
+    }
+
+    function handleSearch(event) {
+      if (event.key === 'Enter' || event.target.value === '') {
+        applyFilters();
+      }
+    }
+
+    function prevPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        renderClaims();
+      }
+    }
+
+    function nextPage() {
+      const totalPages = Math.ceil(filteredClaims.length / pageSize);
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderClaims();
+      }
+    }
+
+    function toggleSelectAll() {
+      const checked = document.getElementById('select-all').checked;
+      document.querySelectorAll('#claims-table input[type="checkbox"]').forEach(cb => {
+        cb.checked = checked;
+        const id = cb.dataset.id;
+        if (checked && !selectedClaims.includes(id)) {
+          selectedClaims.push(id);
+        } else if (!checked) {
+          selectedClaims = [];
+        }
+      });
+    }
+
+    function toggleSelect(id) {
+      const index = selectedClaims.indexOf(id);
+      if (index === -1) {
+        selectedClaims.push(id);
+      } else {
+        selectedClaims.splice(index, 1);
+      }
+    }
+
+    function viewClaim(id) {
+      window.location.href = `/admin/claim/${id}`;
+    }
+
+    function showStatusModal(claimId) {
+      currentAction = { type: 'status', claimId };
+      document.getElementById('modal-title').textContent = 'Update Claim Status';
+      document.getElementById('modal-body').innerHTML = `
+        <div class="form-group">
+          <label>New Status</label>
+          <select class="form-control" id="new-status">
+            <option value="Submitted">Submitted</option>
+            <option value="Under Review">Under Review</option>
+            <option value="Investigating">Investigating</option>
+            <option value="Approved">Approved</option>
+            <option value="Denied">Denied</option>
+            <option value="Processing">Processing</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea class="form-control" id="status-notes" placeholder="Add notes about this status change..."></textarea>
+        </div>
+      `;
+      openModal();
+    }
+
+    function showAssignModal(claimId) {
+      currentAction = { type: 'assign', claimId };
+      document.getElementById('modal-title').textContent = 'Assign Claim';
+      document.getElementById('modal-body').innerHTML = `
+        <div class="form-group">
+          <label>Assign To</label>
+          <select class="form-control" id="assign-to">
+            ${adjusters.map(a => `<option value="${a}">${a}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Priority</label>
+          <select class="form-control" id="assign-priority">
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+      `;
+      openModal();
+    }
+
+    function openModal() {
+      document.getElementById('action-modal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('action-modal').classList.remove('active');
+      currentAction = null;
+    }
+
+    async function confirmAction() {
+      if (!currentAction) return;
+
+      if (currentAction.type === 'status') {
+        const newStatus = document.getElementById('new-status').value;
+        const notes = document.getElementById('status-notes').value;
+
+        try {
+          const response = await fetch(`/api/admin/claims/${currentAction.claimId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus, notes })
+          });
+          const data = await response.json();
+          if (data.success) {
+            loadClaims();
+          }
+        } catch (error) {
+          console.error('Error updating status:', error);
+        }
+      } else if (currentAction.type === 'assign') {
+        // Mock assignment
+        const claim = allClaims.find(c => c.id === currentAction.claimId);
+        if (claim) {
+          claim.assignedTo = document.getElementById('assign-to').value;
+          claim.priority = document.getElementById('assign-priority').value;
+          renderClaims();
+        }
+      }
+
+      closeModal();
+    }
+
+    function openBulkActions() {
+      if (selectedClaims.length === 0) {
+        alert('Please select claims first');
+        return;
+      }
+      alert(`Bulk action on ${selectedClaims.length} claims coming soon!`);
+    }
+
+    function exportClaims() {
+      alert('Export functionality coming soon!');
+    }
+
+    async function logout() {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      window.location.href = '/admin';
+    }
+
+    // Initialize
+    loadAdminUser();
+  </script>
+</body>
+</html>

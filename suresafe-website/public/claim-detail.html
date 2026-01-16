@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claim Details - SureSafe Insurance</title>
+  <link rel="icon" href="/images/icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+  <!-- Box UI Elements CSS -->
+  <link rel="stylesheet" href="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/explorer.css">
+  <link rel="stylesheet" href="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/preview.css">
+  <style>
+    .box-explorer-wrapper {
+      min-height: 400px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .box-explorer-wrapper .be {
+      height: 400px !important;
+    }
+    .box-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 300px;
+      color: #64748b;
+    }
+    .box-loading .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #4a90d9;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <a href="/dashboard" class="logo">
+        <img src="/images/sure-safe-logo-small.png" alt="SureSafe Insurance">
+        <div>
+          <div class="logo-text">SureSafe Insurance</div>
+          <div class="logo-tagline">Member Portal</div>
+        </div>
+      </a>
+      <nav class="nav">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/submit-claim">Submit Claim</a>
+        <a href="/claims" class="active">My Claims</a>
+      </nav>
+      <div class="user-menu">
+        <span class="user-name" id="user-name">Loading...</span>
+        <button class="btn btn-outline" id="logout-btn" style="padding: 0.5rem 1rem;">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div style="margin-bottom: 1rem;">
+      <a href="/claims" style="color: var(--primary-color); text-decoration: none;">
+        &larr; Back to Claims
+      </a>
+    </div>
+
+    <div id="claim-content">
+      <div class="loading">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2024 SureSafe Insurance. All rights reserved. | Powered by Box Platform</p>
+  </footer>
+
+  <!-- Box UI Elements JS -->
+  <script src="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/explorer.js"></script>
+  <script src="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/preview.js"></script>
+
+  <script>
+    let claim = null;
+    let boxAccessToken = null;
+
+    async function loadUser() {
+      try {
+        const response = await fetch('/api/user');
+        const data = await response.json();
+        if (!data.success) {
+          window.location.href = '/login';
+          return;
+        }
+        document.getElementById('user-name').textContent = data.user.name;
+        loadClaim();
+      } catch (error) {
+        window.location.href = '/login';
+      }
+    }
+
+    async function loadClaim() {
+      const claimId = window.location.pathname.split('/').pop();
+
+      try {
+        const response = await fetch(`/api/claims/${claimId}`);
+        const data = await response.json();
+
+        if (!data.success) {
+          document.getElementById('claim-content').innerHTML = `
+            <div class="alert alert-error">Claim not found.</div>
+            <a href="/claims" class="btn btn-primary">Back to Claims</a>
+          `;
+          return;
+        }
+
+        claim = data.claim;
+        renderClaimDetails();
+
+        // Load Box token for UI Elements
+        if (claim.boxFolderId) {
+          await loadBoxToken();
+        }
+      } catch (error) {
+        console.error('Error loading claim:', error);
+        document.getElementById('claim-content').innerHTML = `
+          <div class="alert alert-error">Failed to load claim details.</div>
+        `;
+      }
+    }
+
+    async function loadBoxToken() {
+      try {
+        const response = await fetch('/api/box/token');
+        const data = await response.json();
+        if (data.success) {
+          boxAccessToken = data.accessToken;
+          initBoxElements();
+        }
+      } catch (error) {
+        console.error('Error loading Box token:', error);
+      }
+    }
+
+    function renderClaimDetails() {
+      const statusClass = claim.status.toLowerCase().replace(' ', '-');
+
+      document.getElementById('claim-content').innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 2rem;">
+          <div>
+            <h1 class="page-title">Claim ${claim.id}</h1>
+            <p class="page-subtitle" style="margin-bottom: 0;">${claim.claimType}</p>
+          </div>
+          <span class="status-badge status-${statusClass}" style="font-size: 1rem; padding: 0.5rem 1rem;">
+            ${claim.status}
+          </span>
+        </div>
+
+        <div class="claim-detail-grid">
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Claim Information</h2>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Claim ID</span>
+                <span class="detail-value"><strong>${claim.id}</strong></span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Claim Type</span>
+                <span class="detail-value">${claim.claimType}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Incident Date</span>
+                <span class="detail-value">${new Date(claim.incidentDate).toLocaleDateString()}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Estimated Amount</span>
+                <span class="detail-value"><strong>$${claim.estimatedAmount.toLocaleString()}</strong></span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Submitted On</span>
+                <span class="detail-value">${new Date(claim.createdAt).toLocaleString()}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Policy Number</span>
+                <span class="detail-value">${claim.policyNumber}</span>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Description</h2>
+              </div>
+              <p style="color: var(--text-color); line-height: 1.8;">${claim.description}</p>
+            </div>
+
+            ${claim.aiExtraction ? `
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">&#129302; AI-Extracted Information</h2>
+              </div>
+              <div class="alert alert-info">
+                The following information was automatically extracted from your documents using Box AI:
+              </div>
+              <pre style="background: var(--bg-color); padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.9rem;">${JSON.stringify(claim.aiExtraction, null, 2)}</pre>
+            </div>
+            ` : ''}
+
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Documents (${claim.documents?.length || 0})</h2>
+              </div>
+              ${claim.boxFolderId ? `
+                <div class="box-explorer-wrapper">
+                  <div id="box-explorer" style="height: 400px;">
+                    <div class="box-loading">
+                      <div class="spinner"></div>
+                      <span style="margin-left: 1rem;">Loading documents...</span>
+                    </div>
+                  </div>
+                </div>
+              ` : `
+                <div style="text-align: center; padding: 2rem; color: var(--text-light);">
+                  <p>No documents uploaded for this claim.</p>
+                </div>
+              `}
+            </div>
+          </div>
+
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Status Timeline</h2>
+              </div>
+              <div class="timeline">
+                ${claim.statusHistory.map(entry => `
+                  <div class="timeline-item">
+                    <div class="timeline-date">${new Date(entry.date).toLocaleString()}</div>
+                    <div class="timeline-title">${entry.status}</div>
+                    <div class="timeline-note">${entry.note}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Need Help?</h2>
+              </div>
+              <p style="color: var(--text-light); margin-bottom: 1rem;">
+                Have questions about your claim? Our support team is here to help.
+              </p>
+              <button class="btn btn-secondary" style="width: 100%; justify-content: center;">
+                Contact Support
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Document Preview Modal -->
+        <div id="preview-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; padding: 2rem;">
+          <button onclick="closePreview()" style="position: absolute; top: 1rem; right: 1rem; background: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 1.5rem;">&times;</button>
+          <div id="box-preview" style="width: 100%; height: 100%; background: white; border-radius: 12px;"></div>
+        </div>
+      `;
+    }
+
+    function initBoxElements() {
+      if (!boxAccessToken || !claim.boxFolderId) {
+        console.log('Missing token or folder ID:', { hasToken: !!boxAccessToken, folderId: claim.boxFolderId });
+        const container = document.getElementById('box-explorer');
+        if (container) {
+          container.innerHTML = `
+            <div style="padding: 2rem; text-align: center; color: var(--text-light);">
+              <p>Unable to load documents. Missing access credentials.</p>
+            </div>
+          `;
+        }
+        return;
+      }
+
+      console.log('Initializing Box Explorer with folder:', claim.boxFolderId);
+
+      try {
+        // Initialize Box Content Explorer
+        const explorer = new Box.ContentExplorer();
+        explorer.show(claim.boxFolderId, boxAccessToken, {
+          container: '#box-explorer',
+          logoUrl: '/images/sure-safe-logo-small.png',
+          canUpload: false,
+          canDelete: false,
+          canRename: false,
+          canShare: false,
+          canSetShareAccess: false,
+          canDownload: true,
+          canPreview: true,
+          defaultView: 'files',
+          size: 'large',
+          autoFocus: true
+        });
+
+        // Add click handler for preview
+        explorer.addListener('preview', (data) => {
+          openPreview(data.file.id);
+        });
+
+        explorer.addListener('load', () => {
+          console.log('Box Explorer loaded successfully');
+        });
+
+        explorer.addListener('error', (error) => {
+          console.error('Box Explorer error:', error);
+        });
+      } catch (error) {
+        console.error('Error initializing Box Elements:', error);
+        document.getElementById('box-explorer').innerHTML = `
+          <div style="padding: 2rem; text-align: center; color: var(--text-light);">
+            <p>Unable to load document explorer.</p>
+            <p style="font-size: 0.9rem; margin-top: 0.5rem;">Error: ${error.message || 'Unknown error'}</p>
+            ${claim.documents?.length > 0 ? `
+              <div style="margin-top: 1rem; text-align: left;">
+                <p style="font-weight: 600;">Uploaded Documents:</p>
+                <ul style="margin-top: 0.5rem;">
+                  ${claim.documents.map(d => `<li>${d.name}</li>`).join('')}
+                </ul>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
+    }
+
+    function openPreview(fileId) {
+      document.getElementById('preview-modal').style.display = 'block';
+
+      const preview = new Box.Preview();
+      preview.show(fileId, boxAccessToken, {
+        container: '#box-preview',
+        showDownload: true
+      });
+    }
+
+    function closePreview() {
+      document.getElementById('preview-modal').style.display = 'none';
+      document.getElementById('box-preview').innerHTML = '';
+    }
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/';
+    });
+
+    loadUser();
+  </script>
+</body>
+</html>

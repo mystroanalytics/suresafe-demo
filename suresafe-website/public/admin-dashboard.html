@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - SureSafe Admin</title>
+  <link rel="icon" href="/images/icon.png" type="image/png">
+  <link rel="stylesheet" href="/admin-styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="admin-container">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <img src="/images/sure-safe-logo-small.png" alt="SureSafe">
+        <div>
+          <h2>SureSafe Admin</h2>
+          <small>Back Office Portal</small>
+        </div>
+      </div>
+
+      <div class="sidebar-user">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <div class="user-name" id="user-name">Loading...</div>
+        <div class="user-role">
+          <span class="role-badge" id="user-role-badge">Admin</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">Main</div>
+        <a href="/admin/dashboard" class="nav-item active">
+          <span class="icon">&#128200;</span>
+          Dashboard
+        </a>
+        <a href="/admin/claims" class="nav-item">
+          <span class="icon">&#128203;</span>
+          Claims
+          <span class="badge" id="pending-claims-badge">12</span>
+        </a>
+
+        <div class="nav-section">Workflow</div>
+        <a href="/admin/claims?status=submitted" class="nav-item">
+          <span class="icon">&#128229;</span>
+          New Submissions
+        </a>
+        <a href="/admin/claims?status=under-review" class="nav-item">
+          <span class="icon">&#128270;</span>
+          Under Review
+        </a>
+        <a href="/admin/claims?status=investigating" class="nav-item" id="nav-investigating">
+          <span class="icon">&#128269;</span>
+          Investigations
+        </a>
+        <a href="/admin/claims?status=approved" class="nav-item">
+          <span class="icon">&#9989;</span>
+          Approved
+        </a>
+
+        <div class="nav-section">Tools</div>
+        <a href="#" class="nav-item" onclick="openAIAssistant()">
+          <span class="icon">&#129302;</span>
+          AI Assistant
+        </a>
+        <a href="#" class="nav-item" onclick="openReports()">
+          <span class="icon">&#128202;</span>
+          Reports
+        </a>
+
+        <div class="nav-section">Account</div>
+        <a href="#" class="nav-item" onclick="logout()">
+          <span class="icon">&#128682;</span>
+          Logout
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+      <header class="admin-header">
+        <div class="header-left">
+          <h1 class="header-title" id="dashboard-title">Dashboard</h1>
+        </div>
+        <div class="header-right">
+          <div class="header-search">
+            <span>&#128269;</span>
+            <input type="text" placeholder="Search claims..." id="global-search">
+          </div>
+          <button class="header-icon-btn">
+            &#128276;
+            <span class="notification-dot"></span>
+          </button>
+        </div>
+      </header>
+
+      <div class="admin-content">
+        <!-- Stats Cards -->
+        <div class="stats-grid" id="stats-grid">
+          <!-- Stats will be populated based on role -->
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid" id="charts-grid">
+          <!-- Charts will be populated based on role -->
+        </div>
+
+        <!-- Recent Activity Table -->
+        <div class="table-card">
+          <div class="table-header">
+            <h3>Recent Claims Activity</h3>
+            <a href="/admin/claims" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.85rem;">View All</a>
+          </div>
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Claim ID</th>
+                <th>Claimant</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="recent-claims-table">
+              <!-- Claims will be loaded dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    let adminUser = null;
+    let charts = {};
+
+    // Role-specific configurations
+    const roleConfigs = {
+      adjuster: {
+        title: 'Claim Adjuster Dashboard',
+        stats: [
+          { icon: '&#128203;', color: 'blue', value: '24', label: 'Assigned Claims', trend: '+3 today', up: true },
+          { icon: '&#9203;', color: 'orange', value: '8', label: 'Pending Review', trend: '2 urgent', up: false },
+          { icon: '&#9989;', color: 'green', value: '156', label: 'Claims Processed', trend: '+12% this month', up: true },
+          { icon: '&#128176;', color: 'purple', value: '$1.2M', label: 'Total Assessed', trend: 'This month', up: true }
+        ],
+        charts: ['claimsByType', 'claimsByStatus', 'processingTime', 'assessmentTrend', 'claimAmounts', 'dailyActivity']
+      },
+      supervisor: {
+        title: 'Supervisor Dashboard',
+        stats: [
+          { icon: '&#128101;', color: 'blue', value: '12', label: 'Team Members', trend: '3 online', up: true },
+          { icon: '&#128203;', color: 'orange', value: '156', label: 'Total Claims', trend: '+24 this week', up: true },
+          { icon: '&#9888;', color: 'red', value: '5', label: 'Escalations', trend: '2 critical', up: false },
+          { icon: '&#128200;', color: 'green', value: '94%', label: 'SLA Compliance', trend: '+2%', up: true }
+        ],
+        charts: ['teamPerformance', 'claimsByStatus', 'escalationTrend', 'slaCompliance', 'workloadDistribution', 'monthlyTrend']
+      },
+      investigator: {
+        title: 'Investigator Dashboard',
+        stats: [
+          { icon: '&#128269;', color: 'purple', value: '18', label: 'Active Cases', trend: '+2 new', up: true },
+          { icon: '&#9888;', color: 'red', value: '7', label: 'Fraud Alerts', trend: '3 high priority', up: false },
+          { icon: '&#9989;', color: 'green', value: '42', label: 'Cases Resolved', trend: 'This month', up: true },
+          { icon: '&#128176;', color: 'blue', value: '$450K', label: 'Fraud Prevented', trend: '+18%', up: true }
+        ],
+        charts: ['fraudByType', 'investigationStatus', 'fraudTrend', 'riskScore', 'geographicHotspots', 'resolutionTime']
+      },
+      legal: {
+        title: 'Legal Dashboard',
+        stats: [
+          { icon: '&#9878;', color: 'blue', value: '8', label: 'Active Litigations', trend: '2 hearings soon', up: false },
+          { icon: '&#128203;', color: 'orange', value: '23', label: 'Pending Review', trend: '+5 this week', up: true },
+          { icon: '&#9989;', color: 'green', value: '89', label: 'Cases Closed', trend: 'This quarter', up: true },
+          { icon: '&#128176;', color: 'purple', value: '$2.1M', label: 'Liability Exposure', trend: '-$300K', up: true }
+        ],
+        charts: ['litigationStatus', 'claimsByLegalRisk', 'complianceStatus', 'liabilityTrend', 'caseOutcomes', 'legalTimeline']
+      },
+      executive: {
+        title: 'Executive Dashboard',
+        stats: [
+          { icon: '&#128176;', color: 'green', value: '$8.4M', label: 'Total Payouts', trend: 'This quarter', up: true },
+          { icon: '&#128200;', color: 'blue', value: '2,847', label: 'Total Claims', trend: '+15% YoY', up: true },
+          { icon: '&#9989;', color: 'purple', value: '87%', label: 'Approval Rate', trend: '+3%', up: true },
+          { icon: '&#9203;', color: 'orange', value: '4.2 days', label: 'Avg Processing', trend: '-0.5 days', up: true }
+        ],
+        charts: ['revenueVsPayout', 'claimsTrend', 'categoryBreakdown', 'regionalPerformance', 'customerSatisfaction', 'forecastTrend']
+      }
+    };
+
+    // Chart configurations
+    const chartConfigs = {
+      claimsByType: {
+        title: 'Claims by Type',
+        type: 'doughnut',
+        data: {
+          labels: ['Auto - Collision', 'Property - Water', 'Health - Medical', 'Auto - Liability', 'Property - Fire', 'Other'],
+          datasets: [{
+            data: [35, 25, 18, 12, 7, 3],
+            backgroundColor: ['#4a90d9', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8']
+          }]
+        }
+      },
+      claimsByStatus: {
+        title: 'Claims by Status',
+        type: 'bar',
+        data: {
+          labels: ['Submitted', 'Under Review', 'Investigating', 'Approved', 'Denied', 'Completed'],
+          datasets: [{
+            label: 'Claims',
+            data: [42, 28, 15, 67, 12, 89],
+            backgroundColor: ['#4a90d9', '#ffc107', '#dc3545', '#28a745', '#6c757d', '#17a2b8']
+          }]
+        }
+      },
+      processingTime: {
+        title: 'Average Processing Time (Days)',
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+          datasets: [{
+            label: 'Processing Days',
+            data: [5.2, 4.8, 4.5, 4.2, 4.0, 3.8],
+            borderColor: '#4a90d9',
+            backgroundColor: 'rgba(74, 144, 217, 0.1)',
+            fill: true,
+            tension: 0.4
+          }]
+        }
+      },
+      assessmentTrend: {
+        title: 'Assessment Value Trend',
+        type: 'line',
+        data: {
+          labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+          datasets: [{
+            label: 'Assessed ($K)',
+            data: [280, 320, 290, 350],
+            borderColor: '#28a745',
+            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+            fill: true,
+            tension: 0.4
+          }]
+        }
+      },
+      claimAmounts: {
+        title: 'Claim Amount Distribution',
+        type: 'bar',
+        data: {
+          labels: ['$0-1K', '$1K-5K', '$5K-10K', '$10K-25K', '$25K-50K', '$50K+'],
+          datasets: [{
+            label: 'Claims',
+            data: [45, 78, 52, 34, 18, 8],
+            backgroundColor: '#6f42c1'
+          }]
+        }
+      },
+      dailyActivity: {
+        title: 'Daily Claims Activity',
+        type: 'line',
+        data: {
+          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          datasets: [{
+            label: 'New Claims',
+            data: [12, 19, 15, 22, 18, 8, 5],
+            borderColor: '#4a90d9',
+            tension: 0.4
+          }, {
+            label: 'Processed',
+            data: [10, 15, 18, 20, 16, 6, 3],
+            borderColor: '#28a745',
+            tension: 0.4
+          }]
+        }
+      },
+      teamPerformance: {
+        title: 'Team Performance',
+        type: 'bar',
+        data: {
+          labels: ['Sarah M.', 'John D.', 'Mike R.', 'Lisa K.', 'Tom W.', 'Amy C.'],
+          datasets: [{
+            label: 'Claims Processed',
+            data: [45, 38, 42, 35, 28, 32],
+            backgroundColor: '#4a90d9'
+          }, {
+            label: 'Avg Rating',
+            data: [4.8, 4.5, 4.7, 4.6, 4.3, 4.9],
+            backgroundColor: '#28a745',
+            yAxisID: 'y1'
+          }]
+        },
+        options: {
+          scales: {
+            y1: { position: 'right', max: 5 }
+          }
+        }
+      },
+      escalationTrend: {
+        title: 'Escalation Trend',
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+          datasets: [{
+            label: 'Escalations',
+            data: [12, 15, 10, 8, 11, 7],
+            borderColor: '#dc3545',
+            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+            fill: true,
+            tension: 0.4
+          }]
+        }
+      },
+      slaCompliance: {
+        title: 'SLA Compliance Rate',
+        type: 'doughnut',
+        data: {
+          labels: ['Within SLA', 'Near SLA', 'Breached'],
+          datasets: [{
+            data: [78, 15, 7],
+            backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+          }]
+        }
+      },
+      workloadDistribution: {
+        title: 'Workload Distribution',
+        type: 'pie',
+        data: {
+          labels: ['Sarah M.', 'John D.', 'Mike R.', 'Lisa K.', 'Tom W.', 'Amy C.'],
+          datasets: [{
+            data: [22, 18, 20, 15, 12, 13],
+            backgroundColor: ['#4a90d9', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8']
+          }]
+        }
+      },
+      monthlyTrend: {
+        title: 'Monthly Claims Trend',
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+          datasets: [{
+            label: 'Submitted',
+            data: [120, 135, 128, 142, 155, 148],
+            borderColor: '#4a90d9',
+            tension: 0.4
+          }, {
+            label: 'Resolved',
+            data: [115, 128, 132, 138, 150, 152],
+            borderColor: '#28a745',
+            tension: 0.4
+          }]
+        }
+      },
+      fraudByType: {
+        title: 'Fraud by Category',
+        type: 'doughnut',
+        data: {
+          labels: ['Staged Accidents', 'Inflated Claims', 'False Injury', 'Document Fraud', 'Identity Theft'],
+          datasets: [{
+            data: [28, 35, 18, 12, 7],
+            backgroundColor: ['#dc3545', '#ffc107', '#6f42c1', '#17a2b8', '#28a745']
+          }]
+        }
+      },
+      investigationStatus: {
+        title: 'Investigation Status',
+        type: 'bar',
+        data: {
+          labels: ['New', 'In Progress', 'Evidence Gathering', 'Review', 'Closed'],
+          datasets: [{
+            label: 'Cases',
+            data: [5, 8, 6, 4, 12],
+            backgroundColor: ['#4a90d9', '#ffc107', '#6f42c1', '#17a2b8', '#28a745']
+          }]
+        }
+      },
+      fraudTrend: {
+        title: 'Fraud Detection Trend',
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+          datasets: [{
+            label: 'Detected',
+            data: [8, 12, 10, 15, 11, 14],
+            borderColor: '#dc3545',
+            tension: 0.4
+          }, {
+            label: 'Prevented ($K)',
+            data: [45, 78, 62, 95, 72, 88],
+            borderColor: '#28a745',
+            tension: 0.4,
+            yAxisID: 'y1'
+          }]
+        }
+      },
+      riskScore: {
+        title: 'Claims by Risk Score',
+        type: 'bar',
+        data: {
+          labels: ['Low (0-30)', 'Medium (31-60)', 'High (61-80)', 'Critical (81-100)'],
+          datasets: [{
+            label: 'Claims',
+            data: [145, 78, 32, 12],
+            backgroundColor: ['#28a745', '#ffc107', '#fd7e14', '#dc3545']
+          }]
+        }
+      },
+      geographicHotspots: {
+        title: 'Geographic Fraud Hotspots',
+        type: 'bar',
+        data: {
+          labels: ['Los Angeles', 'Miami', 'Houston', 'Chicago', 'New York', 'Phoenix'],
+          datasets: [{
+            label: 'Fraud Cases',
+            data: [28, 22, 18, 15, 12, 10],
+            backgroundColor: '#dc3545'
+          }]
+        }
+      },
+      resolutionTime: {
+        title: 'Investigation Resolution Time',
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+          datasets: [{
+            label: 'Avg Days',
+            data: [18, 16, 15, 14, 12, 11],
+            borderColor: '#4a90d9',
+            backgroundColor: 'rgba(74, 144, 217, 0.1)',
+            fill: true,
+            tension: 0.4
+          }]
+        }
+      },
+      litigationStatus: {
+        title: 'Litigation Status',
+        type: 'doughnut',
+        data: {
+          labels: ['Pre-litigation', 'Discovery', 'Negotiation', 'Trial', 'Settlement'],
+          datasets: [{
+            data: [15, 8, 12, 3, 22],
+            backgroundColor: ['#4a90d9', '#ffc107', '#6f42c1', '#dc3545', '#28a745']
+          }]
+        }
+      },
+      claimsByLegalRisk: {
+        title: 'Claims by Legal Risk',
+        type: 'bar',
+        data: {
+          labels: ['Low Risk', 'Medium Risk', 'High Risk', 'Litigation Pending'],
+          datasets: [{
+            label: 'Claims',
+            data: [180, 65, 28, 12],
+            backgroundColor: ['#28a745', '#ffc107', '#dc3545', '#6f42c1']
+          }]
+        }
+      },
+      complianceStatus: {
+        title: 'Compliance Review Status',
+        type: 'pie',
+        data: {
+          labels: ['Compliant', 'Minor Issues', 'Major Issues', 'Under Review'],
+          datasets: [{
+            data: [72, 15, 5, 8],
+            backgroundColor: ['#28a745', '#ffc107', '#dc3545', '#17a2b8']
+          }]
+        }
+      },
+      liabilityTrend: {
+        title: 'Liability Exposure Trend',
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+          datasets: [{
+            label: 'Exposure ($M)',
+            data: [2.8, 3.1, 2.9, 2.5, 2.3, 2.1],
+            borderColor: '#dc3545',
+            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+            fill: true,
+            tension: 0.4
+          }]
+        }
+      },
+      caseOutcomes: {
+        title: 'Legal Case Outcomes',
+        type: 'bar',
+        data: {
+          labels: ['Won', 'Settled', 'Lost', 'Dismissed', 'Pending'],
+          datasets: [{
+            label: 'Cases',
+            data: [25, 42, 8, 15, 12],
+            backgroundColor: ['#28a745', '#4a90d9', '#dc3545', '#6c757d', '#ffc107']
+          }]
+        }
+      },
+      legalTimeline: {
+        title: 'Average Case Duration (Months)',
+        type: 'bar',
+        data: {
+          labels: ['Pre-litigation', 'Discovery', 'Negotiation', 'Trial'],
+          datasets: [{
+            label: 'Months',
+            data: [2, 6, 3, 12],
+            backgroundColor: '#6f42c1'
+          }]
+        }
+      },
+      revenueVsPayout: {
+        title: 'Premium Revenue vs Payouts',
+        type: 'bar',
+        data: {
+          labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+          datasets: [{
+            label: 'Revenue ($M)',
+            data: [12.5, 13.2, 14.1, 15.0],
+            backgroundColor: '#4a90d9'
+          }, {
+            label: 'Payouts ($M)',
+            data: [7.2, 8.1, 7.8, 8.4],
+            backgroundColor: '#dc3545'
+          }]
+        }
+      },
+      claimsTrend: {
+        title: 'Claims Volume Trend',
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+          datasets: [{
+            label: '2024',
+            data: [210, 225, 245, 238, 262, 275, 290, 285, 310, 325, 340, 355],
+            borderColor: '#4a90d9',
+            tension: 0.4
+          }, {
+            label: '2023',
+            data: [180, 195, 210, 205, 228, 240, 255, 248, 272, 285, 298, 312],
+            borderColor: '#6c757d',
+            borderDash: [5, 5],
+            tension: 0.4
+          }]
+        }
+      },
+      categoryBreakdown: {
+        title: 'Claims by Category',
+        type: 'doughnut',
+        data: {
+          labels: ['Auto', 'Property', 'Health', 'Life', 'Other'],
+          datasets: [{
+            data: [42, 28, 18, 8, 4],
+            backgroundColor: ['#4a90d9', '#28a745', '#ffc107', '#6f42c1', '#17a2b8']
+          }]
+        }
+      },
+      regionalPerformance: {
+        title: 'Regional Performance',
+        type: 'bar',
+        data: {
+          labels: ['West', 'South', 'Midwest', 'Northeast'],
+          datasets: [{
+            label: 'Claims',
+            data: [850, 720, 580, 697],
+            backgroundColor: '#4a90d9'
+          }, {
+            label: 'Approval %',
+            data: [88, 85, 92, 87],
+            backgroundColor: '#28a745',
+            yAxisID: 'y1'
+          }]
+        }
+      },
+      customerSatisfaction: {
+        title: 'Customer Satisfaction Score',
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+          datasets: [{
+            label: 'CSAT',
+            data: [4.2, 4.3, 4.4, 4.5, 4.6, 4.7],
+            borderColor: '#28a745',
+            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+            fill: true,
+            tension: 0.4
+          }]
+        }
+      },
+      forecastTrend: {
+        title: 'Claims Forecast',
+        type: 'line',
+        data: {
+          labels: ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+          datasets: [{
+            label: 'Forecast',
+            data: [295, 302, 318, 335, 352, 370],
+            borderColor: '#4a90d9',
+            borderDash: [5, 5],
+            tension: 0.4
+          }, {
+            label: 'Target',
+            data: [280, 290, 300, 310, 320, 330],
+            borderColor: '#28a745',
+            tension: 0.4
+          }]
+        }
+      }
+    };
+
+    // Load admin user
+    async function loadAdminUser() {
+      try {
+        const response = await fetch('/api/admin/user');
+        const data = await response.json();
+        if (!data.success) {
+          window.location.href = '/admin';
+          return;
+        }
+        adminUser = data.user;
+        updateUserDisplay();
+        loadDashboard();
+      } catch (error) {
+        window.location.href = '/admin';
+      }
+    }
+
+    function updateUserDisplay() {
+      document.getElementById('user-name').textContent = adminUser.name;
+      document.getElementById('user-avatar').textContent = adminUser.name.charAt(0).toUpperCase();
+      document.getElementById('user-role-badge').textContent = adminUser.role.charAt(0).toUpperCase() + adminUser.role.slice(1);
+    }
+
+    function loadDashboard() {
+      const config = roleConfigs[adminUser.role] || roleConfigs.adjuster;
+      document.getElementById('dashboard-title').textContent = config.title;
+      document.title = config.title + ' - SureSafe Admin';
+
+      // Render stats
+      const statsGrid = document.getElementById('stats-grid');
+      statsGrid.innerHTML = config.stats.map(stat => `
+        <div class="stat-card">
+          <div class="stat-icon ${stat.color}">${stat.icon}</div>
+          <div class="stat-content">
+            <h3>${stat.value}</h3>
+            <p>${stat.label}</p>
+            <span class="stat-trend ${stat.up ? 'up' : 'down'}">
+              ${stat.up ? '&#9650;' : '&#9660;'} ${stat.trend}
+            </span>
+          </div>
+        </div>
+      `).join('');
+
+      // Render charts
+      const chartsGrid = document.getElementById('charts-grid');
+      chartsGrid.innerHTML = config.charts.map((chartKey, index) => {
+        const chartConfig = chartConfigs[chartKey];
+        return `
+          <div class="chart-card ${index === 0 ? 'full-width' : ''}">
+            <div class="chart-header">
+              <h3>${chartConfig.title}</h3>
+              <div class="chart-actions">
+                <button class="active">7D</button>
+                <button>30D</button>
+                <button>90D</button>
+              </div>
+            </div>
+            <div class="chart-body">
+              <canvas id="chart-${chartKey}"></canvas>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Initialize charts
+      config.charts.forEach(chartKey => {
+        const chartConfig = chartConfigs[chartKey];
+        const ctx = document.getElementById(`chart-${chartKey}`).getContext('2d');
+        charts[chartKey] = new Chart(ctx, {
+          type: chartConfig.type,
+          data: chartConfig.data,
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+              legend: {
+                position: chartConfig.type === 'doughnut' || chartConfig.type === 'pie' ? 'right' : 'top'
+              }
+            },
+            ...chartConfig.options
+          }
+        });
+      });
+
+      loadRecentClaims();
+    }
+
+    async function loadRecentClaims() {
+      try {
+        const response = await fetch('/api/admin/claims?limit=5');
+        const data = await response.json();
+        const tableBody = document.getElementById('recent-claims-table');
+
+        if (data.success && data.claims.length > 0) {
+          tableBody.innerHTML = data.claims.map(claim => `
+            <tr>
+              <td><a class="claim-id" onclick="viewClaim('${claim.id}')">${claim.id}</a></td>
+              <td>${claim.userName}</td>
+              <td>${claim.claimType}</td>
+              <td>$${claim.estimatedAmount.toLocaleString()}</td>
+              <td><span class="status-badge ${claim.status.toLowerCase().replace(' ', '-')}">${claim.status}</span></td>
+              <td>${new Date(claim.createdAt).toLocaleDateString()}</td>
+              <td>
+                <div class="table-actions">
+                  <button class="action-btn" onclick="viewClaim('${claim.id}')" title="View">&#128065;</button>
+                  <button class="action-btn" onclick="editClaim('${claim.id}')" title="Edit">&#9998;</button>
+                </div>
+              </td>
+            </tr>
+          `).join('');
+        } else {
+          tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No claims found</td></tr>';
+        }
+      } catch (error) {
+        console.error('Error loading claims:', error);
+      }
+    }
+
+    function viewClaim(id) {
+      window.location.href = `/admin/claim/${id}`;
+    }
+
+    function editClaim(id) {
+      window.location.href = `/admin/claim/${id}?edit=true`;
+    }
+
+    function openAIAssistant() {
+      alert('AI Assistant coming soon!');
+    }
+
+    function openReports() {
+      alert('Reports module coming soon!');
+    }
+
+    async function logout() {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      window.location.href = '/admin';
+    }
+
+    // Initialize
+    loadAdminUser();
+  </script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - SureSafe Insurance</title>
+  <link rel="icon" href="/images/icon.png" type="image/png">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <a href="/dashboard" class="logo">
+        <img src="/images/sure-safe-logo-small.png" alt="SureSafe Insurance">
+        <div>
+          <div class="logo-text">SureSafe Insurance</div>
+          <div class="logo-tagline">Member Portal</div>
+        </div>
+      </a>
+      <nav class="nav">
+        <a href="/dashboard" class="active">Dashboard</a>
+        <a href="/submit-claim">Submit Claim</a>
+        <a href="/claims">My Claims</a>
+      </nav>
+      <div class="user-menu">
+        <span class="user-name" id="user-name">Loading...</span>
+        <button class="btn btn-outline" id="logout-btn" style="padding: 0.5rem 1rem;">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <h1 class="page-title">Welcome back, <span id="welcome-name">Member</span>!</h1>
+    <p class="page-subtitle">Here's an overview of your account and claims.</p>
+
+    <div class="dashboard-grid">
+      <div class="stat-card">
+        <div class="stat-icon claims">&#128196;</div>
+        <div>
+          <div class="stat-value" id="total-claims">0</div>
+          <div class="stat-label">Total Claims</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon pending">&#9203;</div>
+        <div>
+          <div class="stat-value" id="pending-claims">0</div>
+          <div class="stat-label">Pending Review</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon approved">&#10004;</div>
+        <div>
+          <div class="stat-value" id="approved-claims">0</div>
+          <div class="stat-label">Approved</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Quick Actions</h2>
+      </div>
+      <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        <a href="/submit-claim" class="btn btn-primary">
+          &#10133; Submit New Claim
+        </a>
+        <a href="/claims" class="btn btn-secondary">
+          &#128196; View All Claims
+        </a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Your Policy Information</h2>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Policy Number</span>
+        <span class="detail-value" id="policy-number">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Member Since</span>
+        <span class="detail-value" id="member-since">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Email</span>
+        <span class="detail-value" id="user-email">-</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Recent Claims</h2>
+        <a href="/claims" style="color: var(--primary-color);">View All</a>
+      </div>
+      <div id="recent-claims">
+        <div class="loading">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2024 SureSafe Insurance. All rights reserved. | Powered by Box Platform</p>
+  </footer>
+
+  <script>
+    let currentUser = null;
+
+    async function loadUser() {
+      try {
+        const response = await fetch('/api/user');
+        const data = await response.json();
+
+        if (!data.success) {
+          window.location.href = '/login';
+          return;
+        }
+
+        currentUser = data.user;
+        document.getElementById('user-name').textContent = currentUser.name;
+        document.getElementById('welcome-name').textContent = currentUser.name.split(' ')[0];
+        document.getElementById('policy-number').textContent = currentUser.policyNumber;
+        document.getElementById('member-since').textContent = new Date(currentUser.memberSince).toLocaleDateString();
+        document.getElementById('user-email').textContent = currentUser.email;
+
+        loadClaims();
+      } catch (error) {
+        console.error('Error loading user:', error);
+        window.location.href = '/login';
+      }
+    }
+
+    async function loadClaims() {
+      try {
+        const response = await fetch('/api/claims');
+        const data = await response.json();
+
+        if (data.success) {
+          const claims = data.claims;
+
+          document.getElementById('total-claims').textContent = claims.length;
+          document.getElementById('pending-claims').textContent = claims.filter(c => c.status === 'Submitted' || c.status === 'Under Review').length;
+          document.getElementById('approved-claims').textContent = claims.filter(c => c.status === 'Approved' || c.status === 'Paid').length;
+
+          const recentClaimsDiv = document.getElementById('recent-claims');
+
+          if (claims.length === 0) {
+            recentClaimsDiv.innerHTML = `
+              <div style="text-align: center; padding: 2rem; color: var(--text-light);">
+                <p>No claims submitted yet.</p>
+                <a href="/submit-claim" class="btn btn-primary" style="margin-top: 1rem;">Submit Your First Claim</a>
+              </div>
+            `;
+          } else {
+            const recentClaims = claims.slice(0, 5);
+            recentClaimsDiv.innerHTML = `
+              <table class="claims-table">
+                <thead>
+                  <tr>
+                    <th>Claim ID</th>
+                    <th>Type</th>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${recentClaims.map(claim => `
+                    <tr>
+                      <td><strong>${claim.id}</strong></td>
+                      <td>${claim.claimType}</td>
+                      <td>${new Date(claim.createdAt).toLocaleDateString()}</td>
+                      <td>$${claim.estimatedAmount.toLocaleString()}</td>
+                      <td><span class="status-badge status-${claim.status.toLowerCase().replace(' ', '-')}">${claim.status}</span></td>
+                      <td><a href="/claim/${claim.id}" class="btn btn-secondary" style="padding: 0.5rem 1rem;">View</a></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `;
+          }
+        }
+      } catch (error) {
+        console.error('Error loading claims:', error);
+      }
+    }
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/';
+    });
+
+    loadUser();
+  </script>
+</body>
+</html>
