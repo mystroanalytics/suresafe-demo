@@ -1536,7 +1536,7 @@
     // Wait for Box UI Elements to be fully loaded
     (function() {
       const checkBoxLoaded = () => {
-        const components = ['ContentExplorer', 'Preview', 'ContentUploader', 'FilePicker', 'ContentSidebar'];
+        const components = ['ContentExplorer', 'ContentPreview', 'ContentUploader', 'FilePicker', 'ContentSidebar'];
         const loaded = components.filter(c => typeof Box !== 'undefined' && typeof Box[c] === 'function');
         console.log('Box components loaded:', loaded.join(', '));
         if (loaded.length === 0) {
@@ -2263,8 +2263,8 @@
       }
 
       // Check if Box Preview is available - retry with delay if not loaded yet
-      if (typeof Box === 'undefined' || typeof Box.Preview !== 'function') {
-        console.log('Box.Preview not yet available. Retry count:', retryCount, 'Box keys:', typeof Box !== 'undefined' ? Object.keys(Box) : 'undefined');
+      if (typeof Box === 'undefined' || typeof Box.ContentPreview !== 'function') {
+        console.log('Box.ContentPreview not yet available. Retry count:', retryCount, 'Box keys:', typeof Box !== 'undefined' ? Object.keys(Box) : 'undefined');
 
         // Retry up to 5 times with increasing delay
         if (retryCount < 5) {
@@ -2275,7 +2275,7 @@
         }
 
         // After retries, fall back to iframe preview
-        console.log('Box.Preview failed to load after retries, using iframe fallback');
+        console.log('Box.ContentPreview failed to load after retries, using iframe fallback');
         container.innerHTML = `
           <div style="width: 100%; height: 100%; display: flex; flex-direction: column;">
             <div style="padding: 0.5rem; background: #f8f9fa; border-bottom: 1px solid #e2e8f0; text-align: center;">
@@ -2294,7 +2294,7 @@
       }
 
       try {
-        boxPreviewInstance = new Box.Preview();
+        boxPreviewInstance = new Box.ContentPreview();
         boxPreviewInstance.show(fileId, boxAccessToken, {
           container: '#box-preview-inline',
           showDownload: true,
@@ -2426,9 +2426,9 @@
       previewContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%;"><div class="loading-spinner"></div></div>';
 
       // Check if Box Preview is available
-      if (typeof Box !== 'undefined' && typeof Box.Preview === 'function') {
+      if (typeof Box !== 'undefined' && typeof Box.ContentPreview === 'function') {
         try {
-          const sidebarPreview = new Box.Preview();
+          const sidebarPreview = new Box.ContentPreview();
           sidebarPreview.show(fileId, boxAccessToken, {
             container: '#box-sidebar-preview',
             showDownload: true,
@@ -2493,13 +2493,13 @@
       const container = document.getElementById('box-preview-container');
 
       // Check if Box Preview is available
-      if (typeof Box === 'undefined' || typeof Box.Preview !== 'function') {
+      if (typeof Box === 'undefined' || typeof Box.ContentPreview !== 'function') {
         container.innerHTML = `<div style="padding: 2rem; text-align: center; color: #666;"><p>Preview not available for: ${fileName}</p></div>`;
         return;
       }
 
       try {
-        const preview = new Box.Preview();
+        const preview = new Box.ContentPreview();
         preview.show(fileId, boxAccessToken, {
           container: '#box-preview-container',
           showDownload: true
