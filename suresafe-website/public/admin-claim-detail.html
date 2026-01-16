@@ -1600,7 +1600,11 @@
 
     async function loadBoxToken() {
       try {
-        const response = await fetch('/api/admin/box/token');
+        // Pass folderId to get a properly scoped token
+        const tokenUrl = claim.boxFolderId
+          ? `/api/admin/box/token?folderId=${claim.boxFolderId}`
+          : '/api/admin/box/token';
+        const response = await fetch(tokenUrl);
         const data = await response.json();
         if (data.success) {
           boxAccessToken = data.accessToken;
@@ -2181,7 +2185,24 @@
       container.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%;"><div class="loading-spinner"></div></div>';
 
       if (boxPreviewInstance) {
-        boxPreviewInstance.hide();
+        try {
+          boxPreviewInstance.hide();
+        } catch (e) {
+          // Ignore hide errors
+        }
+      }
+
+      // Check if Box Preview is available
+      if (typeof Box === 'undefined' || typeof Box.Preview !== 'function') {
+        console.error('Box.Preview not available. Box object:', typeof Box, Box ? Object.keys(Box) : 'undefined');
+        container.innerHTML = `
+          <div style="padding: 2rem; text-align: center; color: #666;">
+            <p style="margin-bottom: 1rem;">Preview loading...</p>
+            <p style="font-size: 0.85rem;">File: <strong>${fileName}</strong></p>
+            <p style="font-size: 0.85rem; color: #999;">File ID: ${fileId}</p>
+          </div>
+        `;
+        return;
       }
 
       try {
@@ -2194,7 +2215,12 @@
         });
       } catch (error) {
         console.error('Error showing preview:', error);
-        container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;">Error loading preview</div>';
+        container.innerHTML = `
+          <div style="padding: 2rem; text-align: center; color: #dc3545;">
+            <p>Error loading preview</p>
+            <p style="font-size: 0.85rem; margin-top: 0.5rem;">${error.message}</p>
+          </div>
+        `;
       }
     }
 
@@ -2311,24 +2337,41 @@
       const previewContainer = document.getElementById('box-sidebar-preview');
       previewContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%;"><div class="loading-spinner"></div></div>';
 
-      try {
-        const sidebarPreview = new Box.Preview();
-        sidebarPreview.show(fileId, boxAccessToken, {
-          container: '#box-sidebar-preview',
-          showDownload: true,
-          header: 'none'
-        });
-      } catch (error) {
-        console.error('Error showing sidebar preview:', error);
+      // Check if Box Preview is available
+      if (typeof Box !== 'undefined' && typeof Box.Preview === 'function') {
+        try {
+          const sidebarPreview = new Box.Preview();
+          sidebarPreview.show(fileId, boxAccessToken, {
+            container: '#box-sidebar-preview',
+            showDownload: true,
+            header: 'none'
+          });
+        } catch (error) {
+          console.error('Error showing sidebar preview:', error);
+          previewContainer.innerHTML = `<div style="padding: 2rem; text-align: center; color: #666;"><p>Preview: ${fileName}</p></div>`;
+        }
+      } else {
+        previewContainer.innerHTML = `<div style="padding: 2rem; text-align: center; color: #666;"><p>Preview: ${fileName}</p></div>`;
       }
 
       // Show sidebar on the right
       const sidebarContainer = document.getElementById('box-sidebar');
       sidebarContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%;"><div class="loading-spinner"></div></div>';
 
+      // Check if Box ContentSidebar is available
+      if (typeof Box === 'undefined' || typeof Box.ContentSidebar !== 'function') {
+        sidebarContainer.innerHTML = `
+          <div style="padding: 2rem; text-align: center; color: #666;">
+            <p>Sidebar not available</p>
+            <p style="font-size: 0.85rem; margin-top: 0.5rem;">File: ${fileName}</p>
+          </div>
+        `;
+        return;
+      }
+
       try {
         if (boxSidebarInstance) {
-          boxSidebarInstance.hide();
+          try { boxSidebarInstance.hide(); } catch (e) {}
         }
         boxSidebarInstance = new Box.ContentSidebar();
         boxSidebarInstance.show(fileId, boxAccessToken, {
@@ -2359,11 +2402,24 @@
       document.getElementById('preview-modal-title').textContent = fileName || 'Document Preview';
       document.getElementById('preview-modal').classList.add('active');
 
-      const preview = new Box.Preview();
-      preview.show(fileId, boxAccessToken, {
-        container: '#box-preview-container',
-        showDownload: true
-      });
+      const container = document.getElementById('box-preview-container');
+
+      // Check if Box Preview is available
+      if (typeof Box === 'undefined' || typeof Box.Preview !== 'function') {
+        container.innerHTML = `<div style="padding: 2rem; text-align: center; color: #666;"><p>Preview not available for: ${fileName}</p></div>`;
+        return;
+      }
+
+      try {
+        const preview = new Box.Preview();
+        preview.show(fileId, boxAccessToken, {
+          container: '#box-preview-container',
+          showDownload: true
+        });
+      } catch (error) {
+        console.error('Error opening preview:', error);
+        container.innerHTML = `<div style="padding: 2rem; text-align: center; color: #dc3545;"><p>Error loading preview</p></div>`;
+      }
     }
 
     function closePreviewModal() {

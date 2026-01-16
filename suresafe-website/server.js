@@ -1060,13 +1060,30 @@ app.put('/api/admin/claims/:id/status', requireAdminAuth, async (req, res) => {
 });
 
 // Get Box token (admin)
+// Accepts optional folderId query param to scope token to specific folder
 app.get('/api/admin/box/token', requireAdminAuth, async (req, res) => {
   if (!boxClient) {
     return res.status(500).json({ success: false, message: 'Box client not initialized' });
   }
 
   try {
-    const tokenInfo = await boxClient.exchangeToken(['base_explorer', 'base_preview', 'item_download', 'item_preview', 'item_upload']);
+    const folderId = req.query.folderId;
+    const scopes = ['base_explorer', 'base_preview', 'item_download', 'item_preview', 'item_upload', 'item_share', 'item_rename', 'item_delete'];
+
+    let tokenInfo;
+    if (folderId) {
+      // Scope token to specific folder for better security
+      const resource = `https://api.box.com/2.0/folders/${folderId}`;
+      tokenInfo = await boxClient.exchangeToken(scopes, resource);
+    } else {
+      // Fallback: get unscoped token (use service account token directly)
+      const token = await boxClient._session.getAccessToken();
+      return res.json({
+        success: true,
+        accessToken: token,
+        expiresIn: 3600
+      });
+    }
 
     res.json({
       success: true,
@@ -1076,6 +1093,7 @@ app.get('/api/admin/box/token', requireAdminAuth, async (req, res) => {
   } catch (error) {
     console.error('Failed to get Box token:', error.message);
     try {
+      // Fallback: use service account token directly
       const token = await boxClient._session.getAccessToken();
       res.json({
         success: true,
@@ -1083,6 +1101,7 @@ app.get('/api/admin/box/token', requireAdminAuth, async (req, res) => {
         expiresIn: 3600
       });
     } catch (fallbackError) {
+      console.error('Fallback token fetch also failed:', fallbackError.message);
       res.status(500).json({ success: false, message: 'Failed to get access token' });
     }
   }

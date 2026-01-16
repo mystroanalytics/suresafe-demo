@@ -1,22 +1,30 @@
 {
-  "created": "2026-01-10T21:13:32.669Z",
+  "created": "2026-01-10T21:25:51.912Z",
   "targetFolder": "360174903981",
   "cloudRunUrl": "https://suresafe-box-ai-579767694933.us-central1.run.app",
-  "n8nUrl": "https://n8n.suresafe.com/webhook",
+  "n8nUrl": "http://34.174.95.102:5678/webhook",
   "webhooks": [
     {
       "name": "File Upload Handler",
-      "id": "6879777124",
-      "status": "created",
-      "triggers": [
-        "FILE.UPLOADED"
-      ],
-      "address": "https://suresafe-box-ai-579767694933.us-central1.run.app/webhook/box"
+      "status": "error",
+      "error": "Unexpected API Response [409 Conflict | 6k8opti96ciatpg3.0c409d10f43fa7a80a8fe0ff25e5ec47] conflict - Bad Request",
+      "config": {
+        "name": "File Upload Handler",
+        "target": {
+          "type": "folder",
+          "id": "360174903981"
+        },
+        "triggers": [
+          "FILE.UPLOADED"
+        ],
+        "address": "https://suresafe-box-ai-579767694933.us-central1.run.app/webhook/box",
+        "description": "Triggers AI extraction on new document uploads"
+      }
     },
     {
       "name": "Metadata Change Handler",
       "status": "error",
-      "error": "Unexpected API Response [409 Conflict | x5kclqi96c5h08b8.03316b12059c779601759664a8fc74308] conflict - Bad Request",
+      "error": "Unexpected API Response [409 Conflict | jaobmti96ciay98s.07e50298a9d690e07f560d1da0817a2cf] conflict - Bad Request",
       "config": {
         "name": "Metadata Change Handler",
         "target": {
@@ -28,14 +36,14 @@
           "METADATA_INSTANCE.UPDATED",
           "METADATA_INSTANCE.DELETED"
         ],
-        "address": "https://n8n.suresafe.com/webhook/box-metadata",
+        "address": "http://34.174.95.102:5678/webhook/box-metadata",
         "description": "Syncs metadata changes with external systems"
       }
     },
     {
       "name": "Task Handler",
       "status": "error",
-      "error": "Unexpected API Response [409 Conflict | iz4u48i96c5h98om.042af07d69c7be7f8639c1242838e0490] conflict - Bad Request",
+      "error": "Unexpected API Response [409 Conflict | alyqe2i96cib25du.08bbbf94d439f20452d3073ea4855d272] conflict - Bad Request",
       "config": {
         "name": "Task Handler",
         "target": {
@@ -46,14 +54,14 @@
           "TASK_ASSIGNMENT.CREATED",
           "TASK_ASSIGNMENT.UPDATED"
         ],
-        "address": "https://n8n.suresafe.com/webhook/box-tasks",
+        "address": "http://34.174.95.102:5678/webhook/box-tasks",
         "description": "Handles task workflow events"
       }
     },
     {
       "name": "Box Sign Handler",
       "status": "error",
-      "error": "Unexpected API Response [409 Conflict | 6ssjeai96c5hgqnh.084b07187352b952bb0a8444f45374b89] conflict - Bad Request",
+      "error": "Unexpected API Response [409 Conflict | m2dlysi96cib66rw.0c941c4834192e071d1b3bad136abb116] conflict - Bad Request",
       "config": {
         "name": "Box Sign Handler",
         "target": {
@@ -65,14 +73,14 @@
           "SIGN_REQUEST.DECLINED",
           "SIGN_REQUEST.EXPIRED"
         ],
-        "address": "https://n8n.suresafe.com/webhook/box-sign",
+        "address": "http://34.174.95.102:5678/webhook/box-sign",
         "description": "Processes signature events for settlements"
       }
     },
     {
       "name": "Collaboration Handler",
       "status": "error",
-      "error": "Unexpected API Response [409 Conflict | ggt1mji96c5hpckc.07f42fd31fcca25521e953c25d267e503] conflict - Bad Request",
+      "error": "Unexpected API Response [409 Conflict | kofl4fi96cibaaru.055827fb139e3f2c1e5f674f911d66129] conflict - Bad Request",
       "config": {
         "name": "Collaboration Handler",
         "target": {
@@ -83,7 +91,7 @@
           "COLLABORATION.CREATED",
           "COLLABORATION.REMOVED"
         ],
-        "address": "https://n8n.suresafe.com/webhook/box-collab",
+        "address": "http://34.174.95.102:5678/webhook/box-collab",
         "description": "Tracks collaboration changes for audit"
       }
     }
@@ -112,7 +120,7 @@
         "METADATA_INSTANCE.UPDATED",
         "METADATA_INSTANCE.DELETED"
       ],
-      "address": "https://n8n.suresafe.com/webhook/box-metadata",
+      "address": "http://34.174.95.102:5678/webhook/box-metadata",
       "description": "Syncs metadata changes with external systems"
     },
     {
@@ -125,7 +133,7 @@
         "TASK_ASSIGNMENT.CREATED",
         "TASK_ASSIGNMENT.UPDATED"
       ],
-      "address": "https://n8n.suresafe.com/webhook/box-tasks",
+      "address": "http://34.174.95.102:5678/webhook/box-tasks",
       "description": "Handles task workflow events"
     },
     {
@@ -139,7 +147,7 @@
         "SIGN_REQUEST.DECLINED",
         "SIGN_REQUEST.EXPIRED"
       ],
-      "address": "https://n8n.suresafe.com/webhook/box-sign",
+      "address": "http://34.174.95.102:5678/webhook/box-sign",
       "description": "Processes signature events for settlements"
     },
     {
@@ -152,7 +160,7 @@
         "COLLABORATION.CREATED",
         "COLLABORATION.REMOVED"
       ],
-      "address": "https://n8n.suresafe.com/webhook/box-collab",
+      "address": "http://34.174.95.102:5678/webhook/box-collab",
       "description": "Tracks collaboration changes for audit"
     }
   ]
