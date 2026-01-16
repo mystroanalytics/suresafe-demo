@@ -146,7 +146,7 @@
           { icon: '&#9989;', color: 'green', value: '156', label: 'Claims Processed', trend: '+12% this month', up: true },
           { icon: '&#128176;', color: 'purple', value: '$1.2M', label: 'Total Assessed', trend: 'This month', up: true }
         ],
-        charts: ['claimsByType', 'claimsByStatus', 'processingTime', 'assessmentTrend', 'claimAmounts', 'dailyActivity']
+        charts: ['dailyActivity', 'claimsByType', 'claimsByStatus', 'processingTime', 'assessmentTrend', 'claimAmounts']
       },
       supervisor: {
         title: 'Supervisor Dashboard',
@@ -652,8 +652,9 @@
       const chartsGrid = document.getElementById('charts-grid');
       chartsGrid.innerHTML = config.charts.map((chartKey, index) => {
         const chartConfig = chartConfigs[chartKey];
+        const isPieOrDoughnut = chartConfig.type === 'pie' || chartConfig.type === 'doughnut';
         return `
-          <div class="chart-card ${index === 0 ? 'full-width' : ''}">
+          <div class="chart-card">
             <div class="chart-header">
               <h3>${chartConfig.title}</h3>
               <div class="chart-actions">
@@ -662,7 +663,7 @@
                 <button>90D</button>
               </div>
             </div>
-            <div class="chart-body">
+            <div class="chart-body" ${isPieOrDoughnut ? 'style="height: 250px; display: flex; align-items: center; justify-content: center;"' : ''}>
               <canvas id="chart-${chartKey}"></canvas>
             </div>
           </div>
