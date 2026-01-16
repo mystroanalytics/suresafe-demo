@@ -2792,8 +2792,13 @@ The estimated claim amount is $${(claim.estimatedAmount || 0).toLocaleString()}.
       }
     }
 
-    function saveCurrentAIResult(type, title) {
+    async function saveCurrentAIResult(type, title) {
       if (!currentAIResult) return;
+
+      const btn = event.target;
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '&#8987; Saving to Box...';
+      btn.disabled = true;
 
       const savedResult = {
         id: Date.now(),
@@ -2804,14 +2809,52 @@ The estimated claim amount is $${(claim.estimatedAmount || 0).toLocaleString()}.
         claimId: claim.id
       };
 
+      // Upload to Box folder
+      if (claim.boxFolderId) {
+        try {
+          const response = await fetch('/api/admin/box/upload-ai-result', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              folderId: claim.boxFolderId,
+              claimId: claim.id,
+              type: type,
+              title: title,
+              data: currentAIResult.data,
+              timestamp: savedResult.timestamp.toISOString()
+            })
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            // Add file info to saved result
+            savedResult.boxFile = result.file;
+            savedResult.classification = result.file.classification;
+
+            // Show success with file info
+            btn.innerHTML = '&#9989; Saved to Box!';
+            console.log('AI result uploaded to Box:', result.file.name);
+
+            // Refresh the file list in explorer
+            if (typeof loadClaimFiles === 'function') {
+              loadClaimFiles();
+            }
+          } else {
+            console.error('Failed to upload to Box:', result.message);
+            btn.innerHTML = '&#9989; Saved locally';
+          }
+        } catch (error) {
+          console.error('Error uploading to Box:', error);
+          btn.innerHTML = '&#9989; Saved locally';
+        }
+      } else {
+        btn.innerHTML = '&#9989; Saved!';
+      }
+
       savedAIResults.unshift(savedResult);
       updateSavedResultsUI();
 
-      // Show success feedback
-      const btn = event.target;
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '&#9989; Saved!';
-      btn.disabled = true;
       setTimeout(() => {
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -2861,6 +2904,21 @@ The estimated claim amount is $${(claim.estimatedAmount || 0).toLocaleString()}.
                 <div class="box-ai-saved-item-title">${result.title}</div>
                 <div class="box-ai-saved-item-time">${new Date(result.timestamp).toLocaleTimeString()}</div>
               </div>
+              ${result.boxFile ? `
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+                  <span style="font-size: 0.7rem; background: #dbeafe; color: #1d4ed8; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                    &#128230; Saved to Box
+                  </span>
+                  <span style="font-size: 0.7rem; background: ${result.classification?.confidentiality === 'Confidential' ? '#fee2e2' : '#e0f2fe'}; color: ${result.classification?.confidentiality === 'Confidential' ? '#dc2626' : '#1d4ed8'}; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                    ${result.classification?.subCategory?.replace(/_/g, ' ') || 'AI Analysis'}
+                  </span>
+                  ${result.classification?.priority === 'High' ? `
+                    <span style="font-size: 0.7rem; background: #fef3c7; color: #d97706; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                      &#9888; High Priority
+                    </span>
+                  ` : ''}
+                </div>
+              ` : ''}
               <div class="box-ai-saved-item-preview">
                 ${getResultPreview(result)}
               </div>
