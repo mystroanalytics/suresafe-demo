@@ -174,6 +174,28 @@ app.post('/api/claims', upload.array('documents', 10), async (req, res) => {
         const folder = await boxClient.folders.create(CLAIMS_FOLDER_ID, folderName);
         claimFolderId = folder.id;
         console.log(`Created claim folder: ${folder.id}`);
+
+        // Trigger Box Relay workflow for the new claim folder
+        const RELAY_WORKFLOW_ID = '1568430561';
+        try {
+          const workflowResponse = await boxClient.post(`/workflows/${RELAY_WORKFLOW_ID}/start`, {
+            body: {
+              type: 'workflow_parameters',
+              flow: {
+                id: RELAY_WORKFLOW_ID,
+                type: 'flow'
+              },
+              folder: {
+                id: claimFolderId,
+                type: 'folder'
+              }
+            }
+          });
+          console.log(`Box Relay workflow triggered for folder: ${claimFolderId}`, workflowResponse);
+        } catch (relayError) {
+          console.log('Box Relay workflow trigger skipped:', relayError.message);
+          // Non-blocking - continue even if Relay trigger fails
+        }
       } catch (error) {
         console.error('Failed to create claim folder:', error.message);
       }

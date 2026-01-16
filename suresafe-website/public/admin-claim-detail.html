@@ -1533,6 +1533,25 @@
   <script src="https://cdn01.boxcdn.net/platform/elements/19.0.0/en-US/sidebar.js"></script>
 
   <script>
+    // Wait for Box UI Elements to be fully loaded
+    (function() {
+      const checkBoxLoaded = () => {
+        const components = ['ContentExplorer', 'Preview', 'ContentUploader', 'FilePicker', 'ContentSidebar'];
+        const loaded = components.filter(c => typeof Box !== 'undefined' && typeof Box[c] === 'function');
+        console.log('Box components loaded:', loaded.join(', '));
+        if (loaded.length === 0) {
+          console.warn('No Box components loaded yet, will retry on demand');
+        }
+      };
+      if (document.readyState === 'complete') {
+        checkBoxLoaded();
+      } else {
+        window.addEventListener('load', checkBoxLoaded);
+      }
+    })();
+  </script>
+
+  <script>
     let adminUser = null;
     let claim = null;
     let boxAccessToken = null;
@@ -2231,7 +2250,7 @@
       }
     }
 
-    function selectFileForPreview(fileId, fileName) {
+    function selectFileForPreview(fileId, fileName, retryCount = 0) {
       const container = document.getElementById('box-preview-inline');
       container.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%;"><div class="loading-spinner"></div></div>';
 
@@ -2243,14 +2262,32 @@
         }
       }
 
-      // Check if Box Preview is available
+      // Check if Box Preview is available - retry with delay if not loaded yet
       if (typeof Box === 'undefined' || typeof Box.Preview !== 'function') {
-        console.error('Box.Preview not available. Box object:', typeof Box, Box ? Object.keys(Box) : 'undefined');
+        console.log('Box.Preview not yet available. Retry count:', retryCount, 'Box keys:', typeof Box !== 'undefined' ? Object.keys(Box) : 'undefined');
+
+        // Retry up to 5 times with increasing delay
+        if (retryCount < 5) {
+          setTimeout(() => {
+            selectFileForPreview(fileId, fileName, retryCount + 1);
+          }, 500 * (retryCount + 1));
+          return;
+        }
+
+        // After retries, fall back to iframe preview
+        console.log('Box.Preview failed to load after retries, using iframe fallback');
         container.innerHTML = `
-          <div style="padding: 2rem; text-align: center; color: #666;">
-            <p style="margin-bottom: 1rem;">Preview loading...</p>
-            <p style="font-size: 0.85rem;">File: <strong>${fileName}</strong></p>
-            <p style="font-size: 0.85rem; color: #999;">File ID: ${fileId}</p>
+          <div style="width: 100%; height: 100%; display: flex; flex-direction: column;">
+            <div style="padding: 0.5rem; background: #f8f9fa; border-bottom: 1px solid #e2e8f0; text-align: center;">
+              <strong>${fileName}</strong>
+            </div>
+            <iframe
+              src="https://app.box.com/embed/s/${fileId}?view=list&sortColumn=date&sortDirection=DESC"
+              style="flex: 1; width: 100%; border: none;"
+              allowfullscreen
+              webkitallowfullscreen
+              msallowfullscreen
+            ></iframe>
           </div>
         `;
         return;
