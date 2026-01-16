@@ -1923,6 +1923,23 @@
                   <div style="font-weight: 600; color: #1e293b; margin-bottom: 0.5rem;">&#10024; AI Recommendations</div>
                   <div id="upsell-content" style="font-size: 0.85rem; color: #475569; line-height: 1.6;"></div>
                   <div id="upsell-salesforce-status" style="margin-top: 0.75rem; font-size: 0.8rem;"></div>
+                  <button id="save-upsell-to-box-btn" onclick="saveUpsellToBox()" style="
+                    display: none;
+                    margin-top: 0.75rem;
+                    padding: 0.5rem 1rem;
+                    background: #4a90d9;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    font-size: 0.8rem;
+                    font-weight: 500;
+                    cursor: pointer;
+                    align-items: center;
+                    gap: 0.5rem;
+                  ">
+                    <span>&#128230;</span> Save to Box
+                  </button>
+                  <div id="upsell-box-status" style="margin-top: 0.5rem; font-size: 0.8rem;"></div>
                 </div>
                 <button id="discover-opportunities-btn" onclick="discoverUpsellOpportunities()" style="
                   width: 100%;
@@ -2830,16 +2847,24 @@ The estimated claim amount is $${(claim.estimatedAmount || 0).toLocaleString()}.
     // UPSELL OPPORTUNITIES FUNCTIONS
     // ============================================
 
+    let currentUpsellRecommendations = null;
+
     async function discoverUpsellOpportunities() {
       const btn = document.getElementById('discover-opportunities-btn');
       const resultDiv = document.getElementById('upsell-result');
       const contentDiv = document.getElementById('upsell-content');
       const statusDiv = document.getElementById('upsell-salesforce-status');
+      const saveToBoxBtn = document.getElementById('save-upsell-to-box-btn');
+      const boxStatusDiv = document.getElementById('upsell-box-status');
 
       // Update button state
       btn.innerHTML = '<span>&#8987;</span> Analyzing with Box AI...';
       btn.disabled = true;
       btn.style.opacity = '0.7';
+
+      // Reset save button and status
+      saveToBoxBtn.style.display = 'none';
+      boxStatusDiv.innerHTML = '';
 
       try {
         // Get fileId from claimFiles or claim.documents
@@ -2884,10 +2909,16 @@ The estimated claim amount is $${(claim.estimatedAmount || 0).toLocaleString()}.
 Estimated Annual Revenue Opportunity: $350-500`;
         }
 
+        // Store for saving to Box
+        currentUpsellRecommendations = upsellRecommendations;
+
         // Show results
         contentDiv.innerHTML = upsellRecommendations.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         resultDiv.style.display = 'block';
         statusDiv.innerHTML = '<span style="color: #f59e0b;">&#8987; Pushing to Salesforce...</span>';
+
+        // Show save to Box button
+        saveToBoxBtn.style.display = 'inline-flex';
 
         // Push to Salesforce
         try {
@@ -2947,6 +2978,78 @@ Estimated Annual Revenue Opportunity: $350-500`;
         btn.innerHTML = '<span>&#128269;</span> Discover Opportunities';
         btn.disabled = false;
         btn.style.opacity = '1';
+      }
+    }
+
+    async function saveUpsellToBox() {
+      if (!currentUpsellRecommendations || !claim.boxFolderId) {
+        return;
+      }
+
+      const btn = document.getElementById('save-upsell-to-box-btn');
+      const boxStatusDiv = document.getElementById('upsell-box-status');
+
+      // Update button state
+      btn.innerHTML = '<span>&#8987;</span> Saving...';
+      btn.disabled = true;
+
+      try {
+        const response = await fetch('/api/admin/box/upload-ai-result', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            folderId: claim.boxFolderId,
+            claimId: claim.id,
+            type: 'upsell',
+            title: 'Upsell Opportunities',
+            data: currentUpsellRecommendations,
+            timestamp: new Date().toISOString()
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          btn.innerHTML = '<span>&#9989;</span> Saved!';
+          btn.style.background = '#16a34a';
+          boxStatusDiv.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 0.5rem; color: #16a34a;">
+              <span>&#9989;</span>
+              <span>Saved to Box: ${result.file.name}</span>
+            </div>
+          `;
+
+          // Refresh file list
+          if (typeof loadClaimFiles === 'function') {
+            loadClaimFiles();
+          }
+
+          // Reset button after delay
+          setTimeout(() => {
+            btn.innerHTML = '<span>&#128230;</span> Save to Box';
+            btn.style.background = '#4a90d9';
+            btn.disabled = false;
+          }, 3000);
+        } else {
+          btn.innerHTML = '<span>&#128230;</span> Save to Box';
+          btn.disabled = false;
+          boxStatusDiv.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 0.5rem; color: #dc2626;">
+              <span>&#10060;</span>
+              <span>${result.message || 'Failed to save to Box'}</span>
+            </div>
+          `;
+        }
+      } catch (error) {
+        console.error('Error saving to Box:', error);
+        btn.innerHTML = '<span>&#128230;</span> Save to Box';
+        btn.disabled = false;
+        boxStatusDiv.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 0.5rem; color: #dc2626;">
+            <span>&#10060;</span>
+            <span>Error saving to Box</span>
+          </div>
+        `;
       }
     }
 

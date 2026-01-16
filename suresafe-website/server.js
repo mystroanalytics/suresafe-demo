@@ -1175,6 +1175,12 @@ app.post('/api/admin/box/upload-ai-result', requireAdminAuth, async (req, res) =
         subCategory: 'Q_and_A',
         confidentiality: 'Internal',
         priority: 'Normal'
+      },
+      upsell: {
+        category: 'Sales',
+        subCategory: 'Upsell_Opportunity',
+        confidentiality: 'Internal',
+        priority: 'High'
       }
     };
 
