@@ -1257,6 +1257,149 @@ Document Type: ${classification.subCategory}
   }
 });
 
+// ============================================
+// SALESFORCE INTEGRATION
+// ============================================
+
+// Salesforce credentials from environment variables
+const SALESFORCE_CONFIG = {
+  clientId: process.env.SALESFORCE_CLIENT_ID,
+  clientSecret: process.env.SALESFORCE_CLIENT_SECRET,
+  username: process.env.SALESFORCE_USERNAME,
+  password: process.env.SALESFORCE_PASSWORD,
+  securityToken: process.env.SALESFORCE_SECURITY_TOKEN,
+  loginUrl: process.env.SALESFORCE_LOGIN_URL || 'https://login.salesforce.com'
+};
+
+// Get Salesforce access token
+async function getSalesforceToken() {
+  const { clientId, clientSecret, username, password, securityToken, loginUrl } = SALESFORCE_CONFIG;
+
+  if (!clientId || !clientSecret || !username || !password) {
+    return null;
+  }
+
+  try {
+    const params = new URLSearchParams({
+      grant_type: 'password',
+      client_id: clientId,
+      client_secret: clientSecret,
+      username: username,
+      password: password + (securityToken || '')
+    });
+
+    const response = await fetch(`${loginUrl}/services/oauth2/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+
+    const data = await response.json();
+
+    if (data.access_token) {
+      return {
+        accessToken: data.access_token,
+        instanceUrl: data.instance_url
+      };
+    }
+
+    console.error('Salesforce auth failed:', data);
+    return null;
+  } catch (error) {
+    console.error('Salesforce token error:', error.message);
+    return null;
+  }
+}
+
+// Create Salesforce Lead from upsell opportunity
+app.post('/api/admin/salesforce/create-lead', requireAdminAuth, async (req, res) => {
+  try {
+    const {
+      claimId,
+      claimType,
+      customerName,
+      customerEmail,
+      policyNumber,
+      upsellRecommendations,
+      estimatedValue,
+      source
+    } = req.body;
+
+    // Check if Salesforce is configured
+    if (!SALESFORCE_CONFIG.clientId) {
+      return res.json({
+        success: false,
+        message: 'Salesforce not configured. Set SALESFORCE_CLIENT_ID, SALESFORCE_CLIENT_SECRET, SALESFORCE_USERNAME, and SALESFORCE_PASSWORD environment variables.'
+      });
+    }
+
+    // Get Salesforce access token
+    const sfAuth = await getSalesforceToken();
+    if (!sfAuth) {
+      return res.json({
+        success: false,
+        message: 'Failed to authenticate with Salesforce. Check credentials.'
+      });
+    }
+
+    // Parse customer name into first/last
+    const nameParts = customerName.split(' ');
+    const firstName = nameParts[0] || 'Unknown';
+    const lastName = nameParts.slice(1).join(' ') || 'Customer';
+
+    // Create Lead in Salesforce
+    const leadData = {
+      FirstName: firstName,
+      LastName: lastName,
+      Email: customerEmail,
+      Company: `Policy: ${policyNumber}`,
+      LeadSource: source || 'Box AI Analysis',
+      Status: 'New',
+      Description: `Upsell Opportunity from Claim ${claimId}\n\nClaim Type: ${claimType}\nPolicy Number: ${policyNumber}\n\n--- AI Recommendations ---\n${upsellRecommendations}`,
+      Rating: estimatedValue > 400 ? 'Hot' : estimatedValue > 200 ? 'Warm' : 'Cold',
+      Industry: 'Insurance',
+      // Custom fields (if they exist in your Salesforce org)
+      // Claim_ID__c: claimId,
+      // Estimated_Value__c: estimatedValue,
+      // Claim_Type__c: claimType
+    };
+
+    const createResponse = await fetch(`${sfAuth.instanceUrl}/services/data/v59.0/sobjects/Lead`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sfAuth.accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(leadData)
+    });
+
+    const result = await createResponse.json();
+
+    if (result.success || result.id) {
+      console.log('Salesforce Lead created:', result.id);
+      res.json({
+        success: true,
+        leadId: result.id,
+        message: 'Lead created successfully in Salesforce'
+      });
+    } else {
+      console.error('Salesforce create failed:', result);
+      res.json({
+        success: false,
+        message: result.message || result[0]?.message || 'Failed to create lead',
+        errors: result
+      });
+    }
+
+  } catch (error) {
+    console.error('Salesforce lead creation error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating Salesforce lead'
+    });
+  }
+});
+
 // Admin HTML routes
 app.get('/admin', (req, res) => {
   if (req.session.adminUser) {

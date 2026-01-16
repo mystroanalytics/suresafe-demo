@@ -1910,6 +1910,40 @@
               </div>
             </div>
 
+            <!-- Upsell Opportunities -->
+            <div class="detail-card" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+              <div class="detail-card-header" style="border-bottom: 1px solid rgba(255,255,255,0.2);">
+                <h3 style="color: white;">&#128640; Upsell Opportunities</h3>
+              </div>
+              <div class="detail-card-body">
+                <p style="color: rgba(255,255,255,0.9); font-size: 0.9rem; margin-bottom: 1rem;">
+                  Use AI to identify potential upselling opportunities based on this claim.
+                </p>
+                <div id="upsell-result" style="display: none; background: rgba(255,255,255,0.95); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                  <div style="font-weight: 600; color: #1e293b; margin-bottom: 0.5rem;">&#10024; AI Recommendations</div>
+                  <div id="upsell-content" style="font-size: 0.85rem; color: #475569; line-height: 1.6;"></div>
+                  <div id="upsell-salesforce-status" style="margin-top: 0.75rem; font-size: 0.8rem;"></div>
+                </div>
+                <button id="discover-opportunities-btn" onclick="discoverUpsellOpportunities()" style="
+                  width: 100%;
+                  padding: 0.75rem 1rem;
+                  background: white;
+                  color: #667eea;
+                  border: none;
+                  border-radius: 8px;
+                  font-weight: 600;
+                  cursor: pointer;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 0.5rem;
+                  transition: all 0.2s;
+                ">
+                  <span>&#128269;</span> Discover Opportunities
+                </button>
+              </div>
+            </div>
+
             <!-- Claim Timeline -->
             <div class="detail-card" style="margin-bottom: 1.5rem;">
               <div class="detail-card-header">
@@ -2789,6 +2823,130 @@ The estimated claim amount is $${(claim.estimatedAmount || 0).toLocaleString()}.
         showAIResult('AI Response', '&#128172;', content, 'question');
       } catch (error) {
         showAIError(error);
+      }
+    }
+
+    // ============================================
+    // UPSELL OPPORTUNITIES FUNCTIONS
+    // ============================================
+
+    async function discoverUpsellOpportunities() {
+      const btn = document.getElementById('discover-opportunities-btn');
+      const resultDiv = document.getElementById('upsell-result');
+      const contentDiv = document.getElementById('upsell-content');
+      const statusDiv = document.getElementById('upsell-salesforce-status');
+
+      // Update button state
+      btn.innerHTML = '<span>&#8987;</span> Analyzing with Box AI...';
+      btn.disabled = true;
+      btn.style.opacity = '0.7';
+
+      try {
+        // Get fileId from claimFiles or claim.documents
+        const fileId = (claimFiles && claimFiles.length > 0) ? claimFiles[0].id :
+                       (claim.documents && claim.documents.length > 0) ? claim.documents[0].id : null;
+
+        let upsellRecommendations = null;
+
+        // Call Box AI to analyze upselling opportunities
+        if (fileId) {
+          try {
+            const response = await fetch(`${CLOUD_RUN_API}/ask`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                file_id: fileId,
+                question: 'What upselling opportunities can you extract from this claim? Consider the customer profile, claim type, coverage gaps, and potential additional products or services that could benefit this customer. Provide specific recommendations with estimated value.'
+              })
+            });
+            const result = await response.json();
+            upsellRecommendations = result.answer;
+          } catch (e) {
+            console.error('Box AI error:', e);
+          }
+        }
+
+        // Fallback demo response if Box AI fails
+        if (!upsellRecommendations) {
+          upsellRecommendations = `Based on this ${claim.claimType} claim analysis:
+
+1. **Coverage Gap Identified**: Customer may benefit from increased ${claim.claimType === 'Auto' ? 'comprehensive coverage' : 'umbrella policy'} - Est. premium increase: $150-300/year
+
+2. **Bundle Opportunity**: Cross-sell ${claim.claimType === 'Auto' ? 'home insurance' : 'auto insurance'} for 15% multi-policy discount
+
+3. **Deductible Optimization**: Current deductible may be too high based on claim history - recommend reviewing options
+
+4. **Add-on Products**:
+   - Roadside assistance ($45/year)
+   - Rental car coverage ($60/year)
+   - Identity theft protection ($99/year)
+
+Estimated Annual Revenue Opportunity: $350-500`;
+        }
+
+        // Show results
+        contentDiv.innerHTML = upsellRecommendations.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        resultDiv.style.display = 'block';
+        statusDiv.innerHTML = '<span style="color: #f59e0b;">&#8987; Pushing to Salesforce...</span>';
+
+        // Push to Salesforce
+        try {
+          const sfResponse = await fetch('/api/admin/salesforce/create-lead', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              claimId: claim.id,
+              claimType: claim.claimType,
+              customerName: claim.userName,
+              customerEmail: claim.userEmail || `${claim.userName.toLowerCase().replace(/\s/g, '.')}@example.com`,
+              policyNumber: claim.policyNumber,
+              upsellRecommendations: upsellRecommendations,
+              estimatedValue: 425, // Estimated annual revenue
+              source: 'Box AI Analysis'
+            })
+          });
+
+          const sfResult = await sfResponse.json();
+
+          if (sfResult.success) {
+            statusDiv.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 0.5rem; color: #16a34a;">
+                <span>&#9989;</span>
+                <span>Lead created in Salesforce</span>
+                ${sfResult.leadId ? `<span style="color: #94a3b8;">(ID: ${sfResult.leadId})</span>` : ''}
+              </div>
+            `;
+          } else {
+            statusDiv.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 0.5rem; color: #f59e0b;">
+                <span>&#9888;</span>
+                <span>${sfResult.message || 'Salesforce integration not configured'}</span>
+              </div>
+            `;
+          }
+        } catch (sfError) {
+          console.error('Salesforce error:', sfError);
+          statusDiv.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 0.5rem; color: #f59e0b;">
+              <span>&#9888;</span>
+              <span>Configure Salesforce credentials to enable lead creation</span>
+            </div>
+          `;
+        }
+
+        // Reset button
+        btn.innerHTML = '<span>&#128269;</span> Discover Opportunities';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+
+      } catch (error) {
+        console.error('Upsell analysis error:', error);
+        contentDiv.innerHTML = 'Error analyzing opportunities. Please try again.';
+        resultDiv.style.display = 'block';
+        statusDiv.innerHTML = '';
+        btn.innerHTML = '<span>&#128269;</span> Discover Opportunities';
+        btn.disabled = false;
+        btn.style.opacity = '1';
       }
     }
 
